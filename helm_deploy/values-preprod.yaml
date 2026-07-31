@@ -1,11 +1,11 @@
 ---
-# Per environment values which override defaults in hmpps-template-kotlin/values.yaml
+# Per environment values which override defaults in hmpps-prisoner-finance-holds-api/values.yaml
 
 generic-service:
   replicaCount: 2
 
   ingress:
-    host: template-kotlin-preprod.hmpps.service.justice.gov.uk
+    host: prisoner-finance-holds-api-preprod.hmpps.service.justice.gov.uk
     # modsecurity_enabled: true
 
   env:
