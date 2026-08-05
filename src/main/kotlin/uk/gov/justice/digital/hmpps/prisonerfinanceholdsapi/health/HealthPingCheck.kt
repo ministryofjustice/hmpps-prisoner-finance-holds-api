@@ -11,6 +11,5 @@ import uk.gov.justice.hmpps.kotlin.health.HealthPingCheck
 @Component("hmppsAuth")
 class HmppsAuthHealthPing(@Qualifier("hmppsAuthHealthWebClient") webClient: WebClient) : HealthPingCheck(webClient)
 
-
 @Component("generalLedgerApi")
 class GeneralLedgerApiHealthPing(@Qualifier("generalLedgerHealthWebClient") webClient: WebClient) : HealthPingCheck(webClient)

@@ -1,6 +1,5 @@
 package uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config
 
-import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -16,11 +15,10 @@ class WebClientConfiguration(
   @param:Value("\${api.health-timeout:2s}") val healthTimeout: Duration,
   @param:Value("\${api.timeout:20s}") val timeout: Duration,
   @Value("\${general-ledger-api.url}") private val generalLedgerApiBaseUri: String,
-  ) {
+) {
   // HMPPS Auth health ping is required if your service calls HMPPS Auth to get a token to call other services
   @Bean
   fun hmppsAuthHealthWebClient(builder: WebClient.Builder): WebClient = builder.healthWebClient(hmppsAuthBaseUri, healthTimeout)
-
 
   @Bean
   fun generalLedgerHealthWebClient(builder: WebClient.Builder): WebClient = builder.healthWebClient(generalLedgerApiBaseUri, healthTimeout)
@@ -34,4 +32,5 @@ class WebClientConfiguration(
     registrationId = "general-ledger-api",
     url = generalLedgerApiBaseUri,
     timeout = timeout,
-  )}
+  )
+}
