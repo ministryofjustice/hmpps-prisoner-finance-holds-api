@@ -28,7 +28,23 @@ generic-service:
   #       to configure modsecurity rules to suit your needs. Further information can be found here:
   #       https://user-guide.cloud-platform.service.justice.gov.uk/documentation/networking/modsecurity.html#modsecurity-web-application-firewall
 
-
+  postgresDatabaseRestore:
+    jobName: "hmpps-prisoner-finance-holds-api-postgres-restore"
+    enabled: true
+    timeout: 3590
+    namespace_secrets:
+      rds-postgresql-instance-output:
+        DB_NAME: "database_name"
+        DB_USER: "database_username"
+        DB_PASS: "database_password"
+        DB_HOST: "rds_instance_address"
+      rds-postgresql-instance-output-preprod:
+        DB_NAME_PREPROD: "database_name"
+        DB_USER_PREPROD: "database_username"
+        DB_PASS_PREPROD: "database_password"
+        DB_HOST_PREPROD: "rds_instance_address"
+      s3-db-restore-bucket:
+        BUCKET_NAME: "bucket_name"
 
 # CloudPlatform AlertManager receiver to route prometheus alerts to slack
 # See https://user-guide.cloud-platform.service.justice.gov.uk/documentation/monitoring-an-app/how-to-create-alarms.html#creating-your-own-custom-alerts
