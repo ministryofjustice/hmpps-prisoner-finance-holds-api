@@ -6,3 +6,10 @@ springdoc:
     enabled: true
   swagger-ui:
     enabled: true
+
+
+general-ledger-api:
+  url: ${GENERAL_LEDGER_API_URL:http://localhost:8084}
+  client:
+    id: ${GENERAL_LEDGER_API_CLIENT_ID:hmpps-prisoner-finance-general-ledger-api}
+    secret: ${GENERAL_LEDGER_API_CLIENT_ID:clientsecret}
