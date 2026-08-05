@@ -8,7 +8,9 @@ generic-service:
 
   env:
     HMPPS_AUTH_URL: "https://sign-in.hmpps.service.justice.gov.uk/auth"
- 
+    GENERAL_LEDGER_API_URL: "https://prisoner-finance-general-ledger-api.hmpps.service.justice.gov.uk"
+
+
   allowlist:
     # Configure groups as appropriate to give the minimum ingress access required:
     #   global_protect: devices using the global_protect proxy
