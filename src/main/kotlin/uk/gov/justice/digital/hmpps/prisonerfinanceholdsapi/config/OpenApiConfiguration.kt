@@ -47,7 +47,7 @@ class OpenApiConfiguration(buildProperties: BuildProperties) {
   private fun apiTags(): List<Tag> = listOf(
     Tag()
       .name(TAG_HOLDS)
-      .description("Endpoints exclusively for NOMIS synchronization. Do not use for other client integrations."),
+      .description("Endpoints for hold management and viewing in prisoner finance."),
   )
 }
 
