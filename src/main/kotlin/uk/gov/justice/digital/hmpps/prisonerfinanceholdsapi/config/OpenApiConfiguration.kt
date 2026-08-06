@@ -1,13 +1,20 @@
 package uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config
 
+import io.swagger.v3.oas.models.Components
 import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.info.Contact
 import io.swagger.v3.oas.models.info.Info
+import io.swagger.v3.oas.models.security.SecurityRequirement
 import io.swagger.v3.oas.models.security.SecurityScheme
 import io.swagger.v3.oas.models.servers.Server
+import io.swagger.v3.oas.models.tags.Tag
 import org.springframework.boot.info.BuildProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+
+const val ROLE_PRISONER_FINANCE__HOLDS__RO = "ROLE_PRISONER_FINANCE__HOLDS__RO"
+const val ROLE_PRISONER_FINANCE__HOLDS__RW = "ROLE_PRISONER_FINANCE__HOLDS__RW"
+const val TAG_HOLDS = "HOLDS"
 
 @Configuration
 class OpenApiConfiguration(buildProperties: BuildProperties) {
@@ -23,19 +30,30 @@ class OpenApiConfiguration(buildProperties: BuildProperties) {
         Server().url("http://localhost:8080").description("Local"),
       ),
     )
-    .tags(
-      listOf(),
-    )
     .info(
       Info().title("HMPPS Prisoner Finance Holds Api").version(version)
         .contact(Contact().name("HMPPS Digital Studio").email("feedback@digital.justice.gov.uk")),
     )
-  // TODO Add security schema and roles in `.components()` and `.addSecurityItem()`
+    .components(
+      Components()
+        .addSecuritySchemes(
+          "bearer-jwt",
+          SecurityScheme().addBearerJwtRequirement(listOf(ROLE_PRISONER_FINANCE__HOLDS__RO, ROLE_PRISONER_FINANCE__HOLDS__RW)),
+        ),
+    )
+    .addSecurityItem(SecurityRequirement().addList("bearer-jwt"))
+    .tags(apiTags())
+
+  private fun apiTags(): List<Tag> = listOf(
+    Tag()
+      .name(TAG_HOLDS)
+      .description("Endpoints exclusively for NOMIS synchronization. Do not use for other client integrations."),
+  )
 }
 
-private fun SecurityScheme.addBearerJwtRequirement(role: String): SecurityScheme = type(SecurityScheme.Type.HTTP)
+private fun SecurityScheme.addBearerJwtRequirement(roles: List<String>): SecurityScheme = type(SecurityScheme.Type.HTTP)
   .scheme("bearer")
   .bearerFormat("JWT")
   .`in`(SecurityScheme.In.HEADER)
   .name("Authorization")
-  .description("A HMPPS Auth access token with the `$role` role.")
+  .description("A HMPPS Auth access token with either role: `$roles`")
