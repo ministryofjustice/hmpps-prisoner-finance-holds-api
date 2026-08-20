@@ -1,6 +1,16 @@
 plugins {
   id("uk.gov.justice.hmpps.gradle-spring-boot") version "10.5.4"
   kotlin("plugin.spring") version "2.4.10"
+  id("org.jetbrains.kotlin.plugin.noarg") version "2.4.10"
+  id("jacoco")
+  kotlin("plugin.jpa") version "2.4.10"
+}
+
+configure<JacocoPluginExtension> {
+  toolVersion = "0.8.14"
+}
+configurations {
+  testImplementation { exclude(group = "org.junit.vintage") }
 }
 
 dependencies {
@@ -22,7 +32,126 @@ kotlin {
 }
 
 tasks {
+
+  // Disable the test task as we run the integration and unit tests separately
+  named<Test>("test") {
+    enabled = false
+  }
+
   withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
     compilerOptions.jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_25
   }
+
+  register<Test>("unitTest") {
+    group = "verification"
+    description = "Runs unit tests excluding integration tests"
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["main"].output + configurations["testRuntimeClasspath"] + sourceSets["test"].output
+//    Currently no tests outside this package
+//    filter {
+//      excludeTestsMatching("uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.integration*")
+//    }
+    extensions.configure(JacocoTaskExtension::class) {
+      destinationFile = layout.buildDirectory.file("jacoco/unitTest.exec").get().asFile
+    }
+  }
+
+  register<Test>("integrationTest") {
+    description = "Runs the integration tests"
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["main"].output + configurations["testRuntimeClasspath"] + sourceSets["test"].output
+//    Currently no tests outside this package
+//    filter {
+//      includeTestsMatching("uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.integration*")
+//    }
+    extensions.configure(JacocoTaskExtension::class) {
+      destinationFile = layout.buildDirectory.file("jacoco/integrationTest.exec").get().asFile
+    }
+  }
+  withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
+    compilerOptions.jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_25
+  }
+
+  testlogger {
+    theme = com.adarshr.gradle.testlogger.theme.ThemeType.MOCHA
+  }
+}
+
+tasks.register<JacocoReport>("jacocoUnitTestReport") {
+  dependsOn("unitTest")
+  executionData.setFrom(layout.buildDirectory.file("jacoco/unitTest.exec"))
+  classDirectories.setFrom(sourceSets.main.get().output)
+  sourceDirectories.setFrom(sourceSets.main.get().allSource)
+
+  reports {
+    html.required.set(true)
+    html.outputLocation.set(layout.buildDirectory.dir("reports/jacoco/unit"))
+    xml.required.set(true)
+    xml.outputLocation.set(layout.buildDirectory.file("reports/jacoco/unit/jacoco.xml"))
+  }
+
+  doLast {
+    val reportFile = reports.xml.outputLocation.get().asFile
+    if (reportFile.exists()) {
+      val content = reportFile.readText()
+      val updatedContent = content.replaceFirst("name=\"${project.name}\"", "name=\"Unit Tests\"")
+      reportFile.writeText(updatedContent)
+    }
+  }
+}
+
+tasks.register<JacocoReport>("jacocoTestIntegrationReport") {
+  dependsOn("integrationTest")
+  executionData.setFrom(layout.buildDirectory.file("jacoco/integrationTest.exec"))
+
+  classDirectories.setFrom(sourceSets.main.get().output)
+  sourceDirectories.setFrom(sourceSets.main.get().allSource)
+
+  reports {
+    html.required.set(true)
+    html.outputLocation.set(layout.buildDirectory.dir("reports/jacoco/integration"))
+    xml.required.set(true)
+    xml.outputLocation.set(layout.buildDirectory.file("reports/jacoco/integration/jacoco.xml"))
+  }
+
+  doLast {
+    val reportFile = reports.xml.outputLocation.get().asFile
+    if (reportFile.exists()) {
+      val content = reportFile.readText()
+      val updatedContent = content.replaceFirst("name=\"${project.name}\"", "name=\"Integration Tests\"")
+      reportFile.writeText(updatedContent)
+    }
+  }
+}
+
+tasks.register<JacocoReport>("combineJacocoReports") {
+  dependsOn("jacocoUnitTestReport", "jacocoTestIntegrationReport")
+
+  executionData(
+    layout.buildDirectory.file("jacoco/unitTest.exec"),
+    layout.buildDirectory.file("jacoco/integrationTest.exec"),
+  )
+
+  classDirectories.setFrom(sourceSets.main.get().output)
+  sourceDirectories.setFrom(sourceSets.main.get().allSource)
+
+  reports {
+    html.required.set(true)
+    html.outputLocation.set(layout.buildDirectory.dir("reports/jacoco/combined"))
+    xml.required.set(true)
+    xml.outputLocation.set(layout.buildDirectory.file("reports/jacoco/combined/jacoco.xml"))
+  }
+
+  doLast {
+    val reportFile = reports.xml.outputLocation.get().asFile
+    if (reportFile.exists()) {
+      val content = reportFile.readText()
+      val updatedContent = content.replaceFirst("name=\"${project.name}\"", "name=\"Combined Tests\"")
+      reportFile.writeText(updatedContent)
+    }
+  }
+}
+
+tasks.named("check") {
+  dependsOn("unitTest", "integrationTest", "combineJacocoReports")
 }
