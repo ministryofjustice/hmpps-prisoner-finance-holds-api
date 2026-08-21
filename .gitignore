@@ -8,6 +8,7 @@
 .kotlin/
 build/
 
+
 # CMake
 cmake-build-debug/
 
@@ -71,6 +72,9 @@ sonar-project.properties
 
 #Helm
 **/Chart.lock
+
+#Snyk - generated each time
+.snyk
 
 #Everything else:
 .DS_Store
