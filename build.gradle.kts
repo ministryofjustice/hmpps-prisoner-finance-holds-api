@@ -31,7 +31,6 @@ dependencies {
     exclude(group = "io.swagger.core.v3")
   }
 
-
   testImplementation("org.testcontainers:postgresql:1.21.4")
   testImplementation("org.springframework.boot:spring-boot-testcontainers")
   testImplementation("org.springframework.boot:spring-boot-starter-data-jpa-test")

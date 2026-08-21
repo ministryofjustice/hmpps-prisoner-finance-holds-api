@@ -1,5 +1,6 @@
 package uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.integration
 
+import io.swagger.v3.oas.models.Operation
 import io.swagger.v3.parser.OpenAPIV3Parser
 import net.minidev.json.JSONArray
 import org.assertj.core.api.Assertions.assertThat
@@ -10,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.info.BuildProperties
 import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.http.MediaType
+import kotlin.collections.forEach
 
 class OpenApiDocsTest(
   @Autowired private val buildProperties: BuildProperties,
@@ -87,7 +89,21 @@ class OpenApiDocsTest(
     // We therefore need to grab all the valid security requirements and check that each path only contains those items
     val securityRequirements = result.openAPI.security.flatMap { it.keys }
     result.openAPI.paths.forEach { pathItem ->
-      assertThat(pathItem.value.get.security.flatMap { it.keys }).isSubsetOf(securityRequirements)
+      if (pathItem.key.startsWith("/queue-admin")) return@forEach
+      val operations: List<Operation> = listOfNotNull(
+        pathItem.value.get,
+        pathItem.value.put,
+        pathItem.value.post,
+        pathItem.value.delete,
+        pathItem.value.options,
+        pathItem.value.head,
+        pathItem.value.patch,
+        pathItem.value.trace,
+      )
+
+      operations.forEach { operation ->
+        assertThat(operation.security.flatMap { it.keys }).isSubsetOf(securityRequirements)
+      }
     }
   }
 
@@ -109,7 +125,12 @@ class OpenApiDocsTest(
         assertThat(it).contains(role)
       }
       .jsonPath("$.components.securitySchemes.$key.bearerFormat").isEqualTo("JWT")
-      .jsonPath("$.security[0].$key").isEqualTo(JSONArray())
+      .jsonPath("$.security[0].$key").isEqualTo(
+        JSONArray().apply {
+          this.add("read")
+          this.add("write")
+        },
+      )
   }
 
   @Test

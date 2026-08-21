@@ -5,6 +5,14 @@ management.endpoint:
   health.cache.time-to-live: 0
   info.cache.time-to-live: 0
 
+spring:
+  jpa:
+    show-sql: true
+
+  flyway:
+    enabled: true
+    locations: classpath:/db/migrations/common
+
 hmpps-auth:
   url: "http://localhost:8090/auth"
 

@@ -1,27 +1,21 @@
 package uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.entities
 
-import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.HoldType
-import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.SubAccountType
-import java.time.Instant
-import java.util.UUID
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
 import jakarta.persistence.Id
-import jakarta.persistence.Index
-import jakarta.persistence.JoinColumn
-import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
-import jakarta.persistence.UniqueConstraint
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.HoldType
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.SubAccountRef
+import java.time.Instant
+import java.util.UUID
 
 @Entity
 @Table(
   name = "holds",
 )
-data class HoldEntity (
-
+data class HoldEntity(
 
   @Id
   val id: UUID = UUID.randomUUID(),
@@ -33,8 +27,8 @@ data class HoldEntity (
   val legacyHoldNumber: Long,
 
   @Enumerated(EnumType.STRING)
-  @Column(name = "sub_account_type", nullable = false)
-  val subAccountType: SubAccountType,
+  @Column(name = "sub_account_ref", nullable = false)
+  val subAccountRef: SubAccountRef,
 
   @Column(name = "created_at", nullable = false, unique = false)
   val createdAt: Instant,
@@ -43,13 +37,13 @@ data class HoldEntity (
   val createdBy: String,
 
   @Column(name = "hold_from_date", nullable = false, unique = false)
-  val holdFromDate : Instant,
+  val holdFromDate: Instant,
 
   @Column(name = "hold_until_date", nullable = true, unique = false)
-  val holdUntilDate :Instant? = null,
+  val holdUntilDate: Instant? = null,
 
   @Column(name = "is_released", nullable = false, unique = false)
-  val isReleased : Boolean = false,
+  val isReleased: Boolean = false,
 
   @Column(name = "description", nullable = true, unique = false)
   val description: String? = null,
@@ -59,5 +53,5 @@ data class HoldEntity (
   val holdType: HoldType,
 
   @Column(name = "amount", nullable = false, unique = false)
-  val amount: Long
+  val amount: Long,
 )

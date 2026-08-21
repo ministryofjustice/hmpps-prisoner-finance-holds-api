@@ -8,15 +8,14 @@ import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.Hol
 import java.util.UUID
 
 @Service
-class HoldsService (val holdRepository: HoldRepository){
-
+class HoldsService(val holdRepository: HoldRepository) {
 
   fun createHold(createHoldRequest: CreateHoldRequest): HoldResponse {
     val newHold = HoldEntity(
       id = UUID.randomUUID(),
       prisonNumber = createHoldRequest.prisonNumber,
       legacyHoldNumber = createHoldRequest.legacyHoldNumber,
-      subAccountType = createHoldRequest.subAccountCode,
+      subAccountRef = createHoldRequest.subAccountRef,
       createdAt = createHoldRequest.createdAt,
       createdBy = createHoldRequest.createdBy,
       holdFromDate = createHoldRequest.holdFromDate,
@@ -24,7 +23,7 @@ class HoldsService (val holdRepository: HoldRepository){
       isReleased = createHoldRequest.isReleased,
       description = createHoldRequest.description,
       holdType = createHoldRequest.holdType,
-      amount = createHoldRequest.amount
+      amount = createHoldRequest.amount,
     )
     val savedHold = holdRepository.save(newHold)
     return HoldResponse.fromEntity(savedHold)
