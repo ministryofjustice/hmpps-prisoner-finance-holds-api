@@ -11,5 +11,4 @@ class ContainersConfig {
   @Bean
   @ServiceConnection
   fun postgres(): PostgreSQLContainer<*> = PostgreSQLContainer("postgres:16")
-  // fun flywaycustomiser() : FlywayConfigurationCustomizer = FlywayConfigurationCustomizer { config -> config.locations}
 }

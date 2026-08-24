@@ -23,7 +23,6 @@ data class CreateHoldRequest(
   @field:Schema(description = "The time the Hold was created", example = "2026-08-21T15:05:29.426237729Z", required = true)
   val createdAt: Instant,
 
-  @field:NotNull
   @field:Schema(description = "The person who created the Hold", example = "2026-08-21T15:05:29.426237729Z", required = true)
   val createdBy: String,
 
@@ -31,16 +30,14 @@ data class CreateHoldRequest(
   @field:Schema(description = "The date that the hold is active from", example = "2026-08-21T15:05:29.426237729Z", required = true)
   val holdFromDate: Instant,
 
-  @field:NotNull
-  @field:Schema(description = "The date that the hold is expected to be removed", example = "2026-08-21T15:05:29.426237729Z", required = true)
+  @field:Schema(description = "The date that the hold is expected to be removed", example = "2026-08-21T15:05:29.426237729Z", required = false)
   val holdUntilDate: Instant? = null,
 
   @field:NotNull
   @field:Schema(description = "A boolean indicating whether the hold has been released", example = "false", required = true)
   val isReleased: Boolean = false,
 
-  @field:NotNull
-  @field:Schema(description = "A description of the reason for the hold", example = "Damages to cell", required = true)
+  @field:Schema(description = "A description of the reason for the hold", example = "Damages to cell", required = false)
   val description: String? = null,
 
   @field:NotNull

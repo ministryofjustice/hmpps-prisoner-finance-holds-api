@@ -60,6 +60,81 @@ class HoldsIntegrationTest : IntegrationTestBase() {
     }
 
     @Test
+    fun `should return 400 bad request when request is invalid`() {
+      val createHoldRequestJson = """ {
+        "prisonNumber": 12345,
+        "legacyHoldNumber": "12345678",
+        "subAccountRef": "CASH",
+        "createdAt": "TEST",
+        "createdBy": 20260824,
+        "holdFromDate": 20260824,
+        "holdUntilDate": 20260824,
+        "isReleased": "false",
+        "description": 123456,
+        "holdType": "HOA",
+        "amount": "1000"
+      }"""
+
+      webTestClient.post().uri("/holds")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RO)))
+        .header("Content-Type", "application/json")
+        .bodyValue(createHoldRequestJson)
+        .exchange()
+        .expectStatus()
+        .isBadRequest
+    }
+
+    @Test
+    fun `should return a 400 if hold is applied to a sub-account that a prisoner should not have`() {
+      val createHoldRequestJson = """{
+        "prisonNumber": "A12345BC",
+        "legacyHoldNumber": 12345678,
+        "subAccountRef": "CANT",
+        "createdAt": "2026-08-24T12:27:56Z",
+        "createdBy": "TEST",
+        "holdFromDate": "2026-08-24T12:27:56Z",
+        "holdUntilDate": "2026-08-27T12:27:56Z",
+        "isReleased": false,
+        "description": "Damages to cell",
+        "holdType": "HOA",
+        "amount": 1000
+      }"""
+
+      webTestClient.post().uri("/holds")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RO)))
+        .header("Content-Type", "application/json")
+        .bodyValue(createHoldRequestJson)
+        .exchange()
+        .expectStatus()
+        .isBadRequest
+    }
+
+    @Test
+    fun `should return a 400 if hold type is invalid`() {
+      val createHoldRequestJson = """{
+        "prisonNumber": "A12345BC",
+        "legacyHoldNumber": 12345678,
+        "subAccountRef": "CASH",
+        "createdAt": "2026-08-24T12:27:56Z",
+        "createdBy": "TEST",
+        "holdFromDate": "2026-08-24T12:27:56Z",
+        "holdUntilDate": "2026-08-27T12:27:56Z",
+        "isReleased": false,
+        "description": "Damages to cell",
+        "holdType": "ATOF",
+        "amount": 1000
+      }"""
+
+      webTestClient.post().uri("/holds")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RO)))
+        .header("Content-Type", "application/json")
+        .bodyValue(createHoldRequestJson)
+        .exchange()
+        .expectStatus()
+        .isBadRequest
+    }
+
+    @Test
     fun `should return 403 forbidden when user does not have the correct role`() {
       val threeDaysInSeconds = 259200L
 

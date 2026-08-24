@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.security.SecurityRequirement
+import jakarta.validation.Valid
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.PostMapping
@@ -21,8 +22,8 @@ import uk.gov.justice.hmpps.kotlin.common.ErrorResponse
 class HoldsController(val holdsService: HoldsService) {
 
   @Operation(
-    summary = "Create a new account",
-    description = "Creates a new account using a case insensitive account reference",
+    summary = "Create a new hold",
+    description = "Creates a new hold for a prisoner's sub-account.",
   )
   @ApiResponses(
     value = [
@@ -56,7 +57,7 @@ class HoldsController(val holdsService: HoldsService) {
   @SecurityRequirement(name = "bearer-jwt", scopes = [ROLE_PRISONER_FINANCE__HOLDS__RW])
   @PreAuthorize("hasAnyAuthority('$ROLE_PRISONER_FINANCE__HOLDS__RW')")
   @PostMapping("/holds")
-  fun postHold(@RequestBody createHoldRequest: CreateHoldRequest): ResponseEntity<HoldResponse> {
+  fun postHold(@Valid @RequestBody createHoldRequest: CreateHoldRequest): ResponseEntity<HoldResponse> {
     val createdHoldResponse = holdsService.createHold(createHoldRequest)
     return ResponseEntity.status(201).body(createdHoldResponse)
   }
