@@ -13,6 +13,25 @@ services:
       - HMPPS_AUTH_URL=http://hmpps-auth:8080/auth
       - SPRING_PROFILES_ACTIVE=dev
 
+  hmpps-prisoner-finance-holds-db:
+    container_name: hmpps-prisoner-finance-holds-db
+    image: postgres:16
+    restart: always
+    networks:
+      - hmpps
+    ports:
+      - "5436:5432"
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=holds
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+
   hmpps-auth:
     image: ghcr.io/ministryofjustice/hmpps-auth:latest
     networks:
@@ -44,6 +63,7 @@ services:
       - DB_NAME=general_ledger
       - DB_USER=postgres
       - DB_PASS=postgres
+      - DB_PORT=5435
       - CALC_BALANCE_QUEUE_NAME=calculated_balance_queue.fifo
       - CALC_BALANCE_DLQ_NAME=calculated_balance_queue_dlq.fifo
       - SQS_PROVIDER=localstack
