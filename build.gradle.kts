@@ -18,6 +18,11 @@ dependencies {
   implementation("org.springframework.boot:spring-boot-starter-webflux")
   implementation("org.springframework.boot:spring-boot-starter-webclient")
   implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.0")
+  implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+  implementation("org.springframework.boot:spring-boot-starter-flyway")
+  implementation("org.postgresql:postgresql:42.7.13")
+  implementation("org.flywaydb:flyway-core")
+  implementation("org.flywaydb:flyway-database-postgresql")
 
   testImplementation("uk.gov.justice.service.hmpps:hmpps-kotlin-spring-boot-starter-test:3.0.0")
   testImplementation("org.springframework.boot:spring-boot-starter-webflux-test")
@@ -25,6 +30,10 @@ dependencies {
   testImplementation("io.swagger.parser.v3:swagger-parser:2.1.46") {
     exclude(group = "io.swagger.core.v3")
   }
+
+  testImplementation("org.testcontainers:postgresql:1.21.4")
+  testImplementation("org.springframework.boot:spring-boot-testcontainers")
+  testImplementation("org.springframework.boot:spring-boot-starter-data-jpa-test")
 }
 
 kotlin {
@@ -35,7 +44,7 @@ tasks {
 
   // Disable the test task as we run the integration and unit tests separately
   named<Test>("test") {
-    enabled = false
+    enabled = true
   }
 
   withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {

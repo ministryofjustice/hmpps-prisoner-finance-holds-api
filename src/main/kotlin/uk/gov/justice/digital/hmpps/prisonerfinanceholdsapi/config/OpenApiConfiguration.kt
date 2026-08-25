@@ -41,7 +41,7 @@ class OpenApiConfiguration(buildProperties: BuildProperties) {
           SecurityScheme().addBearerJwtRequirement(listOf(ROLE_PRISONER_FINANCE__HOLDS__RO, ROLE_PRISONER_FINANCE__HOLDS__RW)),
         ),
     )
-    .addSecurityItem(SecurityRequirement().addList("bearer-jwt"))
+    .addSecurityItem(SecurityRequirement().addList("bearer-jwt", listOf("read", "write")))
     .tags(apiTags())
 
   private fun apiTags(): List<Tag> = listOf(
