@@ -1,12 +1,22 @@
 hmpps-auth:
   url: "http://localhost:8090/auth"
 
+
+
+spring:
+  application:
+    name: hmpps-prisoner-finance-holds-api
+
+  datasource:
+    url: 'jdbc:postgresql://localhost:5436/holds?sslmode=prefer'
+    username: postgres
+    password: postgres
+
 springdoc:
   api-docs:
     enabled: true
   swagger-ui:
     enabled: true
-
 
 general-ledger-api:
   url: ${GENERAL_LEDGER_API_URL:http://localhost:8084}
