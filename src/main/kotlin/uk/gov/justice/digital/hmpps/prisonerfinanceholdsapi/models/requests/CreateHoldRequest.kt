@@ -47,4 +47,8 @@ data class CreateHoldRequest(
   @field:NotNull
   @field:Schema(description = "The amount to hold from the sub account in pence", example = "1023", required = true)
   val amount: Long,
+
+  @field:NotNull
+  @field:Schema(description = "The location of the hold as a prison code", example = "LEI", required = true)
+  val holdLocation: String,
 )

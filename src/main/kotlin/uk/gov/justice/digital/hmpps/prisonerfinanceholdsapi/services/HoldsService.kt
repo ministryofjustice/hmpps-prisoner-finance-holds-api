@@ -24,6 +24,7 @@ class HoldsService(val holdRepository: HoldRepository) {
       description = createHoldRequest.description,
       holdType = createHoldRequest.holdType,
       amount = createHoldRequest.amount,
+      holdLocation = createHoldRequest.holdLocation,
     )
     val savedHold = holdRepository.save(newHold)
     return HoldResponse.fromEntity(savedHold)
