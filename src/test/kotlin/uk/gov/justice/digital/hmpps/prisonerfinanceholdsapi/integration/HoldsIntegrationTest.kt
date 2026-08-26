@@ -155,7 +155,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         description = "Damages to cell",
         holdType = HoldType.HOA,
         amount = 1000L,
-        holdLocation = "LEI"
+        holdLocation = "LEI",
       )
 
       webTestClient.post().uri("/holds")
