@@ -30,6 +30,8 @@ class HoldResponse(
   val holdType: HoldType,
 
   val amount: Long,
+
+  val holdLocation: String,
 ) {
   companion object {
 
@@ -46,6 +48,7 @@ class HoldResponse(
       description = holdEntity.description,
       holdType = holdEntity.holdType,
       amount = holdEntity.amount,
+      holdLocation = holdEntity.holdLocation,
     )
   }
 }

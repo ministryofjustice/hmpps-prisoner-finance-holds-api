@@ -33,6 +33,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         description = "Damages to cell",
         holdType = HoldType.HOA,
         amount = 1000L,
+        holdLocation = "LEI",
       )
 
       val responseBody = webTestClient.post().uri("/holds")
@@ -57,6 +58,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
       assertThat(responseBody.createdAt).isEqualTo(createHoldRequest.createdAt)
       assertThat(responseBody.createdBy).isEqualTo(createHoldRequest.createdBy)
       assertThat(responseBody.id).isNotNull()
+      assertThat(responseBody.holdLocation).isEqualTo(createHoldRequest.holdLocation)
     }
 
     @Test
@@ -72,7 +74,8 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         "isReleased": "false",
         "description": 123456,
         "holdType": "HOA",
-        "amount": "1000"
+        "amount": "1000",
+        "holdLocation": "LEI"
       }"""
 
       webTestClient.post().uri("/holds")
@@ -97,7 +100,8 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         "isReleased": false,
         "description": "Damages to cell",
         "holdType": "HOA",
-        "amount": 1000
+        "amount": 1000,
+        "holdLocation": "LEI"
       }"""
 
       webTestClient.post().uri("/holds")
@@ -122,7 +126,8 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         "isReleased": false,
         "description": "Damages to cell",
         "holdType": "ATOF",
-        "amount": 1000
+        "amount": 1000, 
+        "holdLocation": "LEI"
       }"""
 
       webTestClient.post().uri("/holds")
@@ -150,6 +155,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         description = "Damages to cell",
         holdType = HoldType.HOA,
         amount = 1000L,
+        holdLocation = "LEI",
       )
 
       webTestClient.post().uri("/holds")

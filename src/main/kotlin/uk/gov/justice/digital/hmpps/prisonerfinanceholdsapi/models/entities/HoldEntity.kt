@@ -54,4 +54,7 @@ data class HoldEntity(
 
   @Column(name = "amount", nullable = false, unique = false)
   val amount: Long,
+
+  @Column(name = "hold_location", nullable = false, unique = false)
+  val holdLocation: String,
 )

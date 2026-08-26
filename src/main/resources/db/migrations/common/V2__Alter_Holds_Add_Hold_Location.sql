@@ -1,0 +1,2 @@
+ALTER TABLE holds
+    ADD COLUMN hold_location VARCHAR(255) NOT NULL;
