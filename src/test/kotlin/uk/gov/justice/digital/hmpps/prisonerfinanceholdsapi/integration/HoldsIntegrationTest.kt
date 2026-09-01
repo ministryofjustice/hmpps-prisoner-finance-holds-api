@@ -1,6 +1,7 @@
 package uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.integration
 
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.springframework.test.web.reactive.server.expectBody
@@ -13,6 +14,11 @@ import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.Hol
 import java.time.Instant
 
 class HoldsIntegrationTest : IntegrationTestBase() {
+
+  @BeforeEach
+  fun setup() {
+    integrationTestHelpers.clearDB()
+  }
 
   @Nested
   inner class PostHolds {
@@ -164,6 +170,40 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         .exchange()
         .expectStatus()
         .isForbidden
+    }
+
+    @Test
+    fun `should return 409 when the legacy hold number already exists`() {
+      val threeDaysInSeconds = 259200L
+      val legacyHoldNumber = 12345678L
+
+      val createHoldRequest = CreateHoldRequest(
+        prisonNumber = "A12345BC",
+        legacyHoldNumber = legacyHoldNumber,
+        subAccountRef = SubAccountRef.CASH,
+        createdAt = Instant.now(),
+        createdBy = "TEST",
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds),
+        isReleased = false,
+        description = "Damages to cell",
+        holdType = HoldType.HOA,
+        amount = 1000L,
+        holdLocation = "LEI",
+      )
+
+      webTestClient.post().uri("/holds")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .bodyValue(createHoldRequest)
+        .exchange()
+        .expectStatus()
+        .isCreated
+
+      webTestClient.post().uri("/holds")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .bodyValue(createHoldRequest)
+        .exchange()
+        .expectStatus().isEqualTo(409)
     }
   }
 }
