@@ -77,7 +77,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         prisonNumber = "A12345BC",
         legacyHoldNumber = legacyHoldNumber,
         subAccountRef = SubAccountRef.CASH,
-        createdAt = Instant.now(),
+        createdAt = Instant.now().truncatedTo(ChronoUnit.MILLIS),
         createdBy = "TEST",
         holdFromDate = Instant.now().truncatedTo(ChronoUnit.MILLIS),
         holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds).truncatedTo(ChronoUnit.MILLIS),
