@@ -68,6 +68,48 @@ class HoldsIntegrationTest : IntegrationTestBase() {
     }
 
     @Test
+    fun `should return 201 when the legacy hold number already exists`() {
+      val threeDaysInSeconds = 259200L
+      val legacyHoldNumber = 12345678L
+
+      val createHoldRequest = CreateHoldRequest(
+        prisonNumber = "A12345BC",
+        legacyHoldNumber = legacyHoldNumber,
+        subAccountRef = SubAccountRef.CASH,
+        createdAt = Instant.now(),
+        createdBy = "TEST",
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds),
+        isReleased = false,
+        description = "Damages to cell",
+        holdType = HoldType.HOA,
+        amount = 1000L,
+        holdLocation = "LEI",
+      )
+
+      val createdHold = webTestClient.post().uri("/holds")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .bodyValue(createHoldRequest)
+        .exchange()
+        .expectStatus()
+        .isCreated
+        .expectBody<HoldResponse>()
+        .returnResult()
+        .responseBody!!
+
+      val duplicate = webTestClient.post().uri("/holds")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .bodyValue(createHoldRequest)
+        .exchange()
+        .expectStatus().isEqualTo(201)
+        .expectBody<HoldResponse>()
+        .returnResult()
+        .responseBody!!
+
+      assertThat(createdHold).isEqualTo(duplicate)
+    }
+
+    @Test
     fun `should return 400 bad request when request is invalid`() {
       val createHoldRequestJson = """ {
         "prisonNumber": 12345,
@@ -170,40 +212,6 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         .exchange()
         .expectStatus()
         .isForbidden
-    }
-
-    @Test
-    fun `should return 409 when the legacy hold number already exists`() {
-      val threeDaysInSeconds = 259200L
-      val legacyHoldNumber = 12345678L
-
-      val createHoldRequest = CreateHoldRequest(
-        prisonNumber = "A12345BC",
-        legacyHoldNumber = legacyHoldNumber,
-        subAccountRef = SubAccountRef.CASH,
-        createdAt = Instant.now(),
-        createdBy = "TEST",
-        holdFromDate = Instant.now(),
-        holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds),
-        isReleased = false,
-        description = "Damages to cell",
-        holdType = HoldType.HOA,
-        amount = 1000L,
-        holdLocation = "LEI",
-      )
-
-      webTestClient.post().uri("/holds")
-        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
-        .bodyValue(createHoldRequest)
-        .exchange()
-        .expectStatus()
-        .isCreated
-
-      webTestClient.post().uri("/holds")
-        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
-        .bodyValue(createHoldRequest)
-        .exchange()
-        .expectStatus().isEqualTo(409)
     }
   }
 }
