@@ -18,7 +18,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
 
   @BeforeEach
   fun setup() {
-    integrationTestHelper.clearDB()
+    integrationTestHelpers.clearDB()
   }
 
   @Nested
@@ -217,7 +217,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
 
       val threeDaysInSeconds = 259200L
 
-      integrationTestHelper.createHold(
+      integrationTestHelpers.createHold(
         prisonNumber = prisonNumber,
         holdNumber = 12345678,
         subAccountRef = SubAccountRef.CASH,
@@ -227,7 +227,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         isReleased = false,
       )
 
-      integrationTestHelper.createHold(
+      integrationTestHelpers.createHold(
         prisonNumber = prisonNumber,
         holdNumber = 12345679,
         subAccountRef = SubAccountRef.SPENDS,
@@ -256,7 +256,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
 
       val threeDaysInSeconds = 259200L
 
-      integrationTestHelper.createHold(
+      integrationTestHelpers.createHold(
         prisonNumber = prisonNumber,
         holdNumber = 12345678,
         subAccountRef = SubAccountRef.CASH,
@@ -266,7 +266,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         isReleased = false,
       )
 
-      integrationTestHelper.createHold(
+      integrationTestHelpers.createHold(
         prisonNumber = prisonNumber,
         holdNumber = 12345679,
         subAccountRef = SubAccountRef.SPENDS,
@@ -276,7 +276,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         isReleased = false,
       )
 
-      integrationTestHelper.createHold(
+      integrationTestHelpers.createHold(
         prisonNumber = prisonNumber,
         holdNumber = 1234599,
         subAccountRef = SubAccountRef.SPENDS,
@@ -350,7 +350,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
 
       val threeDaysInSeconds = 259200L
 
-      integrationTestHelper.createHold(
+      integrationTestHelpers.createHold(
         prisonNumber = prisonNumber,
         holdNumber = 12345678,
         subAccountRef = SubAccountRef.CASH,
@@ -360,7 +360,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         isReleased = false,
       )
 
-      integrationTestHelper.createHold(
+      integrationTestHelpers.createHold(
         prisonNumber = prisonNumber,
         holdNumber = 12345679,
         subAccountRef = SubAccountRef.SPENDS,
@@ -370,7 +370,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         isReleased = false,
       )
 
-      integrationTestHelper.createHold(
+      integrationTestHelpers.createHold(
         prisonNumber = prisonNumber,
         holdNumber = 12345689,
         subAccountRef = SubAccountRef.SPENDS,
@@ -399,7 +399,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
 
       val threeDaysInSeconds = 259200L
 
-      integrationTestHelper.createHold(
+      integrationTestHelpers.createHold(
         prisonNumber = prisonNumber,
         holdNumber = 12345678,
         subAccountRef = SubAccountRef.SPENDS,
@@ -409,7 +409,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         isReleased = false,
       )
 
-      integrationTestHelper.createHold(
+      integrationTestHelpers.createHold(
         prisonNumber = prisonNumber,
         holdNumber = 12345679,
         subAccountRef = SubAccountRef.SPENDS,
@@ -419,7 +419,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         isReleased = false,
       )
 
-      integrationTestHelper.createHold(
+      integrationTestHelpers.createHold(
         prisonNumber = prisonNumber,
         holdNumber = 1234599,
         subAccountRef = SubAccountRef.SPENDS,

@@ -22,7 +22,7 @@ import uk.gov.justice.hmpps.test.kotlin.auth.JwtAuthorisationHelper
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 @ActiveProfiles("test")
 @AutoConfigureWebTestClient
-@Import(ContainersConfig::class, IntegrationTestHelper::class)
+@Import(ContainersConfig::class, IntegrationTestHelpers::class)
 abstract class IntegrationTestBase {
 
   @LocalServerPort
@@ -34,14 +34,14 @@ abstract class IntegrationTestBase {
   protected lateinit var jwtAuthHelper: JwtAuthorisationHelper
 
   @Autowired
-  protected lateinit var integrationTestHelper: IntegrationTestHelper
+  protected lateinit var integrationTestHelpers: IntegrationTestHelpers
 
   @BeforeEach
   fun initClients() {
     webTestClient = WebTestClient.bindToServer()
       .baseUrl("http://localhost:$port")
       .build()
-    integrationTestHelper.setWebClient(webTestClient)
+    integrationTestHelpers.setWebClient(webTestClient)
   }
 
   internal fun setAuthorisation(

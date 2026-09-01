@@ -17,7 +17,7 @@ import uk.gov.justice.hmpps.test.kotlin.auth.JwtAuthorisationHelper
 import java.time.Instant
 
 @TestConfiguration
-class IntegrationTestHelper(
+class IntegrationTestHelpers(
   private val jwtAuthHelper: JwtAuthorisationHelper,
   private val holdsRepository: HoldRepository,
 ) {
