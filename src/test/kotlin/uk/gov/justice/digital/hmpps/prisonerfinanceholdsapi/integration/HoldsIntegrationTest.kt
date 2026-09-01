@@ -1,6 +1,7 @@
 package uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.integration
 
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.springframework.test.web.reactive.server.expectBody
@@ -13,6 +14,11 @@ import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.Hol
 import java.time.Instant
 
 class HoldsIntegrationTest : IntegrationTestBase() {
+
+  @BeforeEach
+  fun setup() {
+    integrationTestHelpers.clearDB()
+  }
 
   @Nested
   inner class PostHolds {

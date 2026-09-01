@@ -20,7 +20,7 @@ import uk.gov.justice.hmpps.test.kotlin.auth.JwtAuthorisationHelper
 @ExtendWith(HmppsAuthApiExtension::class, GeneralLedgerApiExtension::class)
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 @ActiveProfiles("test")
-@Import(ContainersConfig::class)
+@Import(ContainersConfig::class, IntegrationTestHelpers::class)
 abstract class IntegrationTestBase {
 
   @LocalServerPort
@@ -48,4 +48,7 @@ abstract class IntegrationTestBase {
     hmppsAuth.stubHealthPing(statusAuth)
     generalLedgerApi.stubHealthPing(statusGeneralLedger)
   }
+
+  @Autowired
+  protected lateinit var integrationTestHelpers: IntegrationTestHelpers
 }
