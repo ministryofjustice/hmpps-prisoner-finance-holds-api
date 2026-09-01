@@ -260,7 +260,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         prisonNumber = prisonNumber,
         holdNumber = 12345678,
         subAccountRef = SubAccountRef.CASH,
-        amount = 500L,
+        amount = 600L,
         holdFromDate = Instant.now(),
         holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds),
         isReleased = false,
@@ -296,7 +296,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         .returnResult()
         .responseBody!!
 
-      assertThat(result.amount).isEqualTo(1100)
+      assertThat(result.amount).isEqualTo(1200)
     }
 
     @Test
@@ -403,7 +403,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         prisonNumber = prisonNumber,
         holdNumber = 12345678,
         subAccountRef = SubAccountRef.SPENDS,
-        amount = 500L,
+        amount = 300L,
         holdFromDate = Instant.now(),
         holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds),
         isReleased = false,
@@ -439,23 +439,12 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         .returnResult()
         .responseBody!!
 
-      assertThat(result.amount).isEqualTo(1100)
+      assertThat(result.amount).isEqualTo(900)
     }
 
     @Test
     fun `should return zero hold balance for the sub account when there are no holds`() {
       val prisonNumber = "A12345BC"
-
-      // hold present in CASH sub account but not none in SPENDS
-      integrationTestHelper.createHold(
-        prisonNumber = prisonNumber,
-        holdNumber = 12345678,
-        subAccountRef = SubAccountRef.CASH,
-        amount = 500L,
-        holdFromDate = Instant.now(),
-        holdUntilDate = Instant.now().plusSeconds(10),
-        isReleased = false,
-      )
 
       val result = webTestClient.get().uri("/holds/$prisonNumber/balance/SPENDS")
         .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RO)))

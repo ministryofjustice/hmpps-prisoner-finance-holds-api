@@ -69,7 +69,7 @@ class HoldRepositoryTest @Autowired constructor(
         holdNumber = 1234,
         subAccountRef = SubAccountRef.SPENDS,
         isReleased = false,
-        amount = 500,
+        amount = 900,
       )
 
       createHoldEntity(
@@ -82,7 +82,7 @@ class HoldRepositoryTest @Autowired constructor(
 
       val response = holdRepository.getHoldBalanceForAccount(prisonNumber)
 
-      assertThat(response.amount).isEqualTo(500)
+      assertThat(response.amount).isEqualTo(900)
     }
 
     @Test
@@ -101,7 +101,7 @@ class HoldRepositoryTest @Autowired constructor(
         holdNumber = 1234,
         subAccountRef = SubAccountRef.SPENDS,
         isReleased = false,
-        amount = 500,
+        amount = 400,
       )
 
       createHoldEntity(
@@ -114,7 +114,7 @@ class HoldRepositoryTest @Autowired constructor(
 
       val response = holdRepository.getHoldBalanceForSubAccount(prisonNumber, SubAccountRef.SPENDS)
 
-      assertThat(response.amount).isEqualTo(500)
+      assertThat(response.amount).isEqualTo(400)
     }
 
     @Test
@@ -124,7 +124,7 @@ class HoldRepositoryTest @Autowired constructor(
         holdNumber = 1234,
         subAccountRef = SubAccountRef.SPENDS,
         isReleased = false,
-        amount = 500,
+        amount = 550,
       )
 
       createHoldEntity(
@@ -137,7 +137,7 @@ class HoldRepositoryTest @Autowired constructor(
 
       val response = holdRepository.getHoldBalanceForSubAccount(prisonNumber, SubAccountRef.SPENDS)
 
-      assertThat(response.amount).isEqualTo(500)
+      assertThat(response.amount).isEqualTo(550)
     }
 
     @Test
