@@ -12,6 +12,7 @@ import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.SubAcco
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldResponse
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 
 class HoldsIntegrationTest : IntegrationTestBase() {
 
@@ -78,8 +79,8 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         subAccountRef = SubAccountRef.CASH,
         createdAt = Instant.now(),
         createdBy = "TEST",
-        holdFromDate = Instant.now(),
-        holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds),
+        holdFromDate = Instant.now().truncatedTo(ChronoUnit.MILLIS),
+        holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds).truncatedTo(ChronoUnit.MILLIS),
         isReleased = false,
         description = "Damages to cell",
         holdType = HoldType.HOA,
