@@ -7,6 +7,7 @@ import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.SubAcco
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldBalanceResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldResponse
+import java.time.Instant
 import java.util.UUID
 
 @Service
@@ -33,12 +34,17 @@ class HoldsService(val holdRepository: HoldRepository) {
   }
 
   fun getHoldBalanceForAccount(prisonNumber: String): HoldBalanceResponse {
-    val response = holdRepository.getHoldBalanceForAccount(prisonNumber)
-    return HoldBalanceResponse(response.balanceDateTime, response.amount)
+    val amount = holdRepository.findByPrisonNumberAndIsReleasedFalse(
+      prisonNumber = prisonNumber,
+    ).sumOf { it.amount }
+    return HoldBalanceResponse(Instant.now(), amount)
   }
 
   fun getHoldBalanceForSubAccount(prisonNumber: String, subAccountRef: SubAccountRef): HoldBalanceResponse {
-    val response = holdRepository.getHoldBalanceForSubAccount(prisonNumber, subAccountRef)
-    return HoldBalanceResponse(response.balanceDateTime, response.amount)
+    val amount = holdRepository.findByPrisonNumberAndSubAccountRefAndIsReleasedFalse(
+      prisonNumber = prisonNumber,
+      subAccountRef = subAccountRef,
+    ).sumOf { it.amount }
+    return HoldBalanceResponse(Instant.now(), amount)
   }
 }
