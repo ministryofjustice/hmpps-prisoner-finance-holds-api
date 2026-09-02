@@ -8,6 +8,8 @@ import java.util.UUID
 
 @Repository
 interface HoldRepository : JpaRepository<HoldEntity, UUID> {
+  fun getHoldEntityByLegacyHoldNumber(legacyHoldNumber: Long): HoldEntity?
+
   fun findByPrisonNumberAndSubAccountRefAndIsReleasedFalse(prisonNumber: String, subAccountRef: SubAccountRef): List<HoldEntity>
 
   fun findByPrisonNumberAndIsReleasedFalse(prisonNumber: String): List<HoldEntity>

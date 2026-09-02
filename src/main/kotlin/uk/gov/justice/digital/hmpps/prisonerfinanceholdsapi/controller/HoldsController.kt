@@ -61,11 +61,6 @@ class HoldsController(val holdsService: HoldsService) {
         content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
       ),
       ApiResponse(
-        responseCode = "409",
-        description = "Conflict - Legacy Hold Number already exists",
-        content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
-      ),
-      ApiResponse(
         responseCode = "500",
         description = "Internal Server Error - An unexpected error occurred.",
         content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
@@ -172,7 +167,7 @@ class HoldsController(val holdsService: HoldsService) {
       ApiResponse(
         responseCode = "200",
         description = "Hold balance of the sub account",
-        content = [Content(mediaType = "application/json", schema = Schema(implementation = HoldResponse::class))],
+        content = [Content(mediaType = "application/json", schema = Schema(implementation = HoldBalanceResponse::class))],
       ),
       ApiResponse(
         responseCode = "400",

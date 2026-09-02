@@ -6,7 +6,7 @@ import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.SubAcco
 import java.time.Instant
 import java.util.UUID
 
-class HoldResponse(
+data class HoldResponse(
   val id: UUID,
 
   val prisonNumber: String,
