@@ -13,6 +13,7 @@ import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.Crea
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldBalanceResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldResponse
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 
 class HoldsIntegrationTest : IntegrationTestBase() {
 
@@ -66,6 +67,48 @@ class HoldsIntegrationTest : IntegrationTestBase() {
       assertThat(responseBody.createdBy).isEqualTo(createHoldRequest.createdBy)
       assertThat(responseBody.id).isNotNull()
       assertThat(responseBody.holdLocation).isEqualTo(createHoldRequest.holdLocation)
+    }
+
+    @Test
+    fun `should return 201 when the legacy hold number already exists`() {
+      val threeDaysInSeconds = 259200L
+      val legacyHoldNumber = 12345678L
+
+      val createHoldRequest = CreateHoldRequest(
+        prisonNumber = "A12345BC",
+        legacyHoldNumber = legacyHoldNumber,
+        subAccountRef = SubAccountRef.CASH,
+        createdAt = Instant.now().truncatedTo(ChronoUnit.MILLIS),
+        createdBy = "TEST",
+        holdFromDate = Instant.now().truncatedTo(ChronoUnit.MILLIS),
+        holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds).truncatedTo(ChronoUnit.MILLIS),
+        isReleased = false,
+        description = "Damages to cell",
+        holdType = HoldType.HOA,
+        amount = 1000L,
+        holdLocation = "LEI",
+      )
+
+      val createdHold = webTestClient.post().uri("/holds")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .bodyValue(createHoldRequest)
+        .exchange()
+        .expectStatus()
+        .isCreated
+        .expectBody<HoldResponse>()
+        .returnResult()
+        .responseBody!!
+
+      val duplicate = webTestClient.post().uri("/holds")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .bodyValue(createHoldRequest)
+        .exchange()
+        .expectStatus().isEqualTo(201)
+        .expectBody<HoldResponse>()
+        .returnResult()
+        .responseBody!!
+
+      assertThat(createdHold).isEqualTo(duplicate)
     }
 
     @Test
@@ -171,40 +214,6 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         .exchange()
         .expectStatus()
         .isForbidden
-    }
-
-    @Test
-    fun `should return 409 when the legacy hold number already exists`() {
-      val threeDaysInSeconds = 259200L
-      val legacyHoldNumber = 12345678L
-
-      val createHoldRequest = CreateHoldRequest(
-        prisonNumber = "A12345BC",
-        legacyHoldNumber = legacyHoldNumber,
-        subAccountRef = SubAccountRef.CASH,
-        createdAt = Instant.now(),
-        createdBy = "TEST",
-        holdFromDate = Instant.now(),
-        holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds),
-        isReleased = false,
-        description = "Damages to cell",
-        holdType = HoldType.HOA,
-        amount = 1000L,
-        holdLocation = "LEI",
-      )
-
-      webTestClient.post().uri("/holds")
-        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
-        .bodyValue(createHoldRequest)
-        .exchange()
-        .expectStatus()
-        .isCreated
-
-      webTestClient.post().uri("/holds")
-        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
-        .bodyValue(createHoldRequest)
-        .exchange()
-        .expectStatus().isEqualTo(409)
     }
   }
 

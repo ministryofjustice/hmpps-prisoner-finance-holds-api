@@ -1,5 +1,6 @@
 package uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.services
 
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.HoldRepository
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.entities.HoldEntity
@@ -29,8 +30,17 @@ class HoldsService(val holdRepository: HoldRepository) {
       amount = createHoldRequest.amount,
       holdLocation = createHoldRequest.holdLocation,
     )
-    val savedHold = holdRepository.save(newHold)
-    return HoldResponse.fromEntity(savedHold)
+    try {
+      val savedHold = holdRepository.save(newHold)
+      return HoldResponse.fromEntity(savedHold)
+    } catch (e: Exception) {
+      val isDuplicateHold = e.message?.contains("uc_holds_legacy_hold_number") == true
+      if (e is DataIntegrityViolationException && isDuplicateHold) {
+        val previouslyCreatedHold = holdRepository.getHoldEntityByLegacyHoldNumber(createHoldRequest.legacyHoldNumber)
+        return HoldResponse.fromEntity(previouslyCreatedHold!!)
+      }
+      throw e
+    }
   }
 
   fun getHoldBalanceForAccount(prisonNumber: String): HoldBalanceResponse {
