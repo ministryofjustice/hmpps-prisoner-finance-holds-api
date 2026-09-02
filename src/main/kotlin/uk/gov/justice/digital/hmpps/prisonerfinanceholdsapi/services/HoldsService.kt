@@ -31,7 +31,8 @@ class HoldsService(val holdRepository: HoldRepository) {
       val savedHold = holdRepository.save(newHold)
       return HoldResponse.fromEntity(savedHold)
     } catch (e: Exception) {
-      if (e is DataIntegrityViolationException) {
+      val isDuplicateHold = e.message?.contains("uc_holds_legacy_hold_number") == true
+      if (e is DataIntegrityViolationException && isDuplicateHold) {
         val previouslyCreatedHold = holdRepository.getHoldEntityByLegacyHoldNumber(createHoldRequest.legacyHoldNumber)
         return HoldResponse.fromEntity(previouslyCreatedHold!!)
       }
