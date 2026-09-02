@@ -6,7 +6,7 @@ import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.entities.Hold
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.SubAccountRef
 import java.util.UUID
 
-
+@Repository
 interface HoldRepository : JpaRepository<HoldEntity, UUID> {
   fun getHoldEntityByLegacyHoldNumber(legacyHoldNumber: Long): HoldEntity?
 
