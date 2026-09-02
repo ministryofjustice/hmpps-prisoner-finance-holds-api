@@ -3,8 +3,11 @@ package uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.services
 import org.springframework.stereotype.Service
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.HoldRepository
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.entities.HoldEntity
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.SubAccountRef
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldRequest
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldBalanceResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldResponse
+import java.time.Instant
 import java.util.UUID
 
 @Service
@@ -28,5 +31,20 @@ class HoldsService(val holdRepository: HoldRepository) {
     )
     val savedHold = holdRepository.save(newHold)
     return HoldResponse.fromEntity(savedHold)
+  }
+
+  fun getHoldBalanceForAccount(prisonNumber: String): HoldBalanceResponse {
+    val amount = holdRepository.findByPrisonNumberAndIsReleasedFalse(
+      prisonNumber = prisonNumber,
+    ).sumOf { it.amount }
+    return HoldBalanceResponse(Instant.now(), amount)
+  }
+
+  fun getHoldBalanceForSubAccount(prisonNumber: String, subAccountRef: SubAccountRef): HoldBalanceResponse {
+    val amount = holdRepository.findByPrisonNumberAndSubAccountRefAndIsReleasedFalse(
+      prisonNumber = prisonNumber,
+      subAccountRef = subAccountRef,
+    ).sumOf { it.amount }
+    return HoldBalanceResponse(Instant.now(), amount)
   }
 }

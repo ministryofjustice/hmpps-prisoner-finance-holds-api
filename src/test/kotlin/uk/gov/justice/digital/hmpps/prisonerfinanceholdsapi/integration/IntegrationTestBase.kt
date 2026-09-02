@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT
 import org.springframework.boot.test.web.server.LocalServerPort
+import org.springframework.boot.webtestclient.autoconfigure.AutoConfigureWebTestClient
 import org.springframework.context.annotation.Import
 import org.springframework.http.HttpHeaders
 import org.springframework.test.context.ActiveProfiles
@@ -20,6 +21,7 @@ import uk.gov.justice.hmpps.test.kotlin.auth.JwtAuthorisationHelper
 @ExtendWith(HmppsAuthApiExtension::class, GeneralLedgerApiExtension::class)
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 @ActiveProfiles("test")
+@AutoConfigureWebTestClient
 @Import(ContainersConfig::class, IntegrationTestHelpers::class)
 abstract class IntegrationTestBase {
 
@@ -31,11 +33,15 @@ abstract class IntegrationTestBase {
   @Autowired
   protected lateinit var jwtAuthHelper: JwtAuthorisationHelper
 
+  @Autowired
+  protected lateinit var integrationTestHelpers: IntegrationTestHelpers
+
   @BeforeEach
   fun initClients() {
     webTestClient = WebTestClient.bindToServer()
       .baseUrl("http://localhost:$port")
       .build()
+    integrationTestHelpers.setWebClient(webTestClient)
   }
 
   internal fun setAuthorisation(
@@ -48,7 +54,4 @@ abstract class IntegrationTestBase {
     hmppsAuth.stubHealthPing(statusAuth)
     generalLedgerApi.stubHealthPing(statusGeneralLedger)
   }
-
-  @Autowired
-  protected lateinit var integrationTestHelpers: IntegrationTestHelpers
 }
