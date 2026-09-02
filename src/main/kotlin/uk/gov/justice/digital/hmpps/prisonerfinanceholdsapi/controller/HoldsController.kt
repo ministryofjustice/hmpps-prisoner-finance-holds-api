@@ -86,7 +86,7 @@ class HoldsController(val holdsService: HoldsService) {
       ApiResponse(
         responseCode = "200",
         description = "Overall hold balance of the account for all sub accounts",
-        content = [Content(mediaType = "application/json", schema = Schema(implementation = HoldResponse::class))],
+        content = [Content(mediaType = "application/json", schema = Schema(implementation = HoldBalanceResponse::class))],
       ),
       ApiResponse(
         responseCode = "400",
@@ -128,7 +128,7 @@ class HoldsController(val holdsService: HoldsService) {
       ApiResponse(
         responseCode = "200",
         description = "Hold balance of the sub account",
-        content = [Content(mediaType = "application/json", schema = Schema(implementation = HoldResponse::class))],
+        content = [Content(mediaType = "application/json", schema = Schema(implementation = HoldBalanceResponse::class))],
       ),
       ApiResponse(
         responseCode = "400",
