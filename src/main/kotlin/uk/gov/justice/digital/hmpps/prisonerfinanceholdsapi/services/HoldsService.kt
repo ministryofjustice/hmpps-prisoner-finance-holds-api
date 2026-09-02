@@ -1,7 +1,7 @@
 package uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.services
 
-import org.springframework.http.HttpStatus
 import org.springframework.dao.DataIntegrityViolationException
+import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.HoldRepository
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.CustomException
