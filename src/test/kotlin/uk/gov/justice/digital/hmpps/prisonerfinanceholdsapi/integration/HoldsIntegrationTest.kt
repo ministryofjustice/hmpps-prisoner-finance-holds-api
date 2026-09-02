@@ -304,7 +304,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
       val initialReleaseTime = Instant.now()
 
       val releaseRequestOne = ReleaseHoldRequest(
-        releaseDateTime = initialReleaseTime.truncatedTo(ChronoUnit.MILLIS),
+        releaseDateTime = initialReleaseTime,
       )
 
       webTestClient.post().uri("/holds/${createdHold.id}/release")
@@ -329,7 +329,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         .returnResult()
         .responseBody!!
 
-      assertThat(secondReleaseResult.releasedAt.truncatedTo(ChronoUnit.MILLIS)).isEqualTo(initialReleaseTime)
+      assertThat(secondReleaseResult.releasedAt.truncatedTo(ChronoUnit.MILLIS)).isEqualTo(initialReleaseTime.truncatedTo(ChronoUnit.MILLIS))
     }
 
     @Test
