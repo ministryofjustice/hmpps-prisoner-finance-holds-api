@@ -13,4 +13,5 @@ interface HoldRepository : JpaRepository<HoldEntity, UUID> {
   fun findByPrisonNumberAndSubAccountRefAndIsReleasedFalse(prisonNumber: String, subAccountRef: SubAccountRef): List<HoldEntity>
 
   fun findByPrisonNumberAndIsReleasedFalse(prisonNumber: String): List<HoldEntity>
+  fun findHoldEntityById(holdId: UUID): HoldEntity?
 }

@@ -22,10 +22,13 @@ import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.ROLE_PRISONER
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.TAG_HOLDS
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.SubAccountRef
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldRequest
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.ReleaseHoldRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldBalanceResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldResponse
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.ReleasedHoldResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.services.HoldsService
 import uk.gov.justice.hmpps.kotlin.common.ErrorResponse
+import java.util.UUID
 
 @Tag(name = TAG_HOLDS)
 @RestController
@@ -70,6 +73,47 @@ class HoldsController(val holdsService: HoldsService) {
   fun postHold(@Valid @RequestBody createHoldRequest: CreateHoldRequest): ResponseEntity<HoldResponse> {
     val createdHoldResponse = holdsService.createHold(createHoldRequest)
     return ResponseEntity.status(201).body(createdHoldResponse)
+  }
+
+  @Operation(
+    summary = "Release a hold by its id",
+    description = "Release a hold by its id. This will set the released flag to true and no longer be included in the prisoner's hold balance.",
+  )
+  @ApiResponses(
+    value = [
+      ApiResponse(
+        responseCode = "200",
+        description = "Hold Released",
+        content = [Content(mediaType = "application/json", schema = Schema(implementation = ReleasedHoldResponse::class))],
+      ),
+      ApiResponse(
+        responseCode = "400",
+        description = "Bad Request",
+        content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
+      ),
+      ApiResponse(
+        responseCode = "401",
+        description = "Unauthorized - requires a valid OAuth2 token",
+        content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
+      ),
+      ApiResponse(
+        responseCode = "403",
+        description = "Forbidden - requires an appropriate role",
+        content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
+      ),
+      ApiResponse(
+        responseCode = "500",
+        description = "Internal Server Error - An unexpected error occurred.",
+        content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
+      ),
+    ],
+  )
+  @SecurityRequirement(name = "bearer-jwt", scopes = [ROLE_PRISONER_FINANCE__HOLDS__RW])
+  @PreAuthorize("hasAnyAuthority('$ROLE_PRISONER_FINANCE__HOLDS__RW')")
+  @PostMapping("/holds/{id}/release")
+  fun releaseHoldById(@PathVariable @Valid id: UUID, @RequestBody @Valid releaseHoldRequest: ReleaseHoldRequest): ResponseEntity<ReleasedHoldResponse> {
+    val releasedHoldResponse = holdsService.releaseHoldById(id, releaseHoldRequest.releaseDateTime)
+    return ResponseEntity.status(HttpStatus.OK).body(releasedHoldResponse)
   }
 
   @Operation(
