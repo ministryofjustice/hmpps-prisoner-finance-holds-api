@@ -16,6 +16,7 @@ import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.Hol
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.ReleasedHoldResponse
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 import java.util.UUID
 
 class HoldsIntegrationTest : IntegrationTestBase() {
@@ -303,7 +304,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
       val initialReleaseTime = Instant.now()
 
       val releaseRequestOne = ReleaseHoldRequest(
-        releaseDateTime = initialReleaseTime,
+        releaseDateTime = initialReleaseTime.truncatedTo(ChronoUnit.MILLIS),
       )
 
       webTestClient.post().uri("/holds/${createdHold.id}/release")
