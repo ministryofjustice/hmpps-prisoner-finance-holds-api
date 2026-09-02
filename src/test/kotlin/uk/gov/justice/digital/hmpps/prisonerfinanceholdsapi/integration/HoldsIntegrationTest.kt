@@ -1,5 +1,6 @@
 package uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.integration
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
@@ -15,8 +16,11 @@ import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.Hol
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.ReleasedHoldResponse
 import java.time.Instant
+import java.util.UUID
 
 class HoldsIntegrationTest : IntegrationTestBase() {
+
+  val mapper = ObjectMapper()
 
   @BeforeEach
   fun setup() {
@@ -265,6 +269,114 @@ class HoldsIntegrationTest : IntegrationTestBase() {
       val holdEntity = integrationTestHelpers.selectHold(createdHold.id)
 
       assertThat(holdEntity.isReleased).isTrue()
+    }
+
+    @Test
+    fun `should return 200 ok if the hold was already released, preserving the initial release time`() {
+      val threeDaysInSeconds = 259200L
+      val legacyHoldNumber = 12345679L
+
+      val createHoldRequest = CreateHoldRequest(
+        prisonNumber = "A12345BA",
+        legacyHoldNumber = legacyHoldNumber,
+        subAccountRef = SubAccountRef.CASH,
+        createdAt = Instant.now(),
+        createdBy = "TEST",
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds),
+        isReleased = false,
+        description = "hold",
+        holdType = HoldType.HOA,
+        amount = 99L,
+        holdLocation = "LEI",
+      )
+
+      val createdHold = webTestClient.post().uri("/holds")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .bodyValue(createHoldRequest)
+        .exchange()
+        .expectStatus().isCreated
+        .expectBody<HoldResponse>()
+        .returnResult()
+        .responseBody!!
+
+      val initialReleaseTime = Instant.now()
+
+      val releaseRequestOne = ReleaseHoldRequest(
+        releaseDateTime = initialReleaseTime,
+      )
+
+      webTestClient.post().uri("/holds/${createdHold.id}/release")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .bodyValue(releaseRequestOne)
+        .exchange()
+        .expectStatus().isOk
+        .expectBody<ReleasedHoldResponse>()
+
+      // second attempt at release should return success, but preserve original release time
+
+      val releaseRequestTwo = ReleaseHoldRequest(
+        releaseDateTime = initialReleaseTime.plusSeconds(1),
+      )
+
+      val secondReleaseResult = webTestClient.post().uri("/holds/${createdHold.id}/release")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .bodyValue(releaseRequestTwo)
+        .exchange()
+        .expectStatus().isOk
+        .expectBody<ReleasedHoldResponse>()
+        .returnResult()
+        .responseBody!!
+
+      assertThat(secondReleaseResult.releasedAt).isEqualTo(initialReleaseTime)
+    }
+
+    @Test
+    fun `should return 404 NOT FOUND when the hold does not exist`() {
+      val releaseRequest = ReleaseHoldRequest(
+        releaseDateTime = Instant.now(),
+      )
+
+      webTestClient.post().uri("/holds/${UUID.randomUUID()}/release")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .bodyValue(releaseRequest)
+        .exchange()
+        .expectStatus().isNotFound
+    }
+
+    @Test
+    fun `should return 400 bad request when the id is not a UUID`() {
+      val releaseRequest = ReleaseHoldRequest(
+        releaseDateTime = Instant.now(),
+      )
+
+      webTestClient.post().uri("/holds/this-is-not-a-uuid/release")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .bodyValue(releaseRequest)
+        .exchange()
+        .expectStatus().isBadRequest
+    }
+
+    @Test
+    fun `should return 400 bad request when not send a valid HoldReleaseRequest`() {
+      webTestClient.post().uri("/holds/this-is-not-a-uuid/release")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .bodyValue(mapper.writeValueAsString(mapOf("invalid" to "request")))
+        .exchange()
+        .expectStatus().isBadRequest
+    }
+
+    @Test
+    fun `should return 403 forbidden when user does not have the correct role`() {
+      val releaseRequest = ReleaseHoldRequest(
+        releaseDateTime = Instant.now(),
+      )
+
+      webTestClient.post().uri("/holds/${UUID.randomUUID()}/release")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RO)))
+        .bodyValue(releaseRequest)
+        .exchange()
+        .expectStatus().isForbidden
     }
   }
 

@@ -13,11 +13,41 @@ import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.security.access.AccessDeniedException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException
 import org.springframework.web.servlet.resource.NoResourceFoundException
 import uk.gov.justice.hmpps.kotlin.common.ErrorResponse
 
 @RestControllerAdvice
 class PrisonerFinanceHoldsApiExceptionHandler {
+
+  @ExceptionHandler(CustomException::class)
+  fun handleCustomException(e: CustomException): ResponseEntity<ErrorResponse> = ResponseEntity
+    .status(e.status)
+    .body(
+      ErrorResponse(
+        status = e.status.value(),
+        userMessage = e.message,
+        developerMessage = e.message,
+      ),
+    ).also { log.info("CustomExceptionThrown: {}", e.message) }
+
+  @ExceptionHandler(MethodArgumentTypeMismatchException::class)
+  fun handleMethodArgumentTypeMismatchException(e: MethodArgumentTypeMismatchException): ResponseEntity<ErrorResponse> {
+    val paramName = e.parameter.parameterName
+    val requiredType = e.parameter.parameterType.simpleName
+
+    val userMessage = "Parameter '$paramName' must be of type $requiredType"
+
+    return ResponseEntity
+      .status(BAD_REQUEST)
+      .body(
+        ErrorResponse(
+          status = BAD_REQUEST,
+          userMessage = userMessage,
+          developerMessage = e.message,
+        ),
+      ).also { log.info("MethodArgumentTypeMismatchException: {}", e.message) }
+  }
 
   @ExceptionHandler(HttpMessageNotReadableException::class)
   fun handleHttpMessageNotReadableException(e: HttpMessageNotReadableException): ResponseEntity<ErrorResponse> = ResponseEntity

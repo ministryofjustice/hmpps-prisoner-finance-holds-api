@@ -89,7 +89,7 @@ class HoldsController(val holdsService: HoldsService) {
       ApiResponse(
         responseCode = "200",
         description = "Hold Released",
-        content = [Content(mediaType = "application/json", schema = Schema(implementation = HoldResponse::class))],
+        content = [Content(mediaType = "application/json", schema = Schema(implementation = ReleasedHoldResponse::class))],
       ),
       ApiResponse(
         responseCode = "400",
@@ -116,11 +116,44 @@ class HoldsController(val holdsService: HoldsService) {
   @SecurityRequirement(name = "bearer-jwt", scopes = [ROLE_PRISONER_FINANCE__HOLDS__RW])
   @PreAuthorize("hasAnyAuthority('$ROLE_PRISONER_FINANCE__HOLDS__RW')")
   @PostMapping("/holds/{id}/release")
-  fun releaseHoldById(@PathVariable id: UUID, @RequestBody releaseHoldRequest: ReleaseHoldRequest): ResponseEntity<ReleasedHoldResponse> {
+  fun releaseHoldById(@PathVariable @Valid id: UUID, @RequestBody @Valid releaseHoldRequest: ReleaseHoldRequest): ResponseEntity<ReleasedHoldResponse> {
     val releasedHoldResponse = holdsService.releaseHoldById(id, releaseHoldRequest.releaseDateTime)
     return ResponseEntity.status(HttpStatus.OK).body(releasedHoldResponse)
   }
 
+  @Operation(
+    summary = "Get the account hold balance.",
+    description = "Get the account hold balance.",
+  )
+  @ApiResponses(
+    value = [
+      ApiResponse(
+        responseCode = "200",
+        description = "Overall hold balance of the account for all sub accounts",
+        content = [Content(mediaType = "application/json", schema = Schema(implementation = HoldBalanceResponse::class))],
+      ),
+      ApiResponse(
+        responseCode = "400",
+        description = "Bad Request",
+        content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
+      ),
+      ApiResponse(
+        responseCode = "401",
+        description = "Unauthorized - requires a valid OAuth2 token",
+        content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
+      ),
+      ApiResponse(
+        responseCode = "403",
+        description = "Forbidden - requires an appropriate role",
+        content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
+      ),
+      ApiResponse(
+        responseCode = "500",
+        description = "Internal Server Error - An unexpected error occurred.",
+        content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
+      ),
+    ],
+  )
   @SecurityRequirement(name = "bearer-jwt", scopes = [ROLE_PRISONER_FINANCE__HOLDS__RO, ROLE_PRISONER_FINANCE__HOLDS__RW])
   @PreAuthorize("hasAnyAuthority('$ROLE_PRISONER_FINANCE__HOLDS__RW', '$ROLE_PRISONER_FINANCE__HOLDS__RO')")
   @GetMapping("/holds/{prisonNumber}/balance")
