@@ -329,7 +329,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         .returnResult()
         .responseBody!!
 
-      assertThat(secondReleaseResult.releasedAt).isEqualTo(initialReleaseTime)
+      assertThat(secondReleaseResult.releasedAt.truncatedTo(ChronoUnit.MILLIS)).isEqualTo(initialReleaseTime)
     }
 
     @Test
