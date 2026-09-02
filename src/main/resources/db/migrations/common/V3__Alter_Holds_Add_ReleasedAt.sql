@@ -1,0 +1,2 @@
+ALTER TABLE holds
+    ADD COLUMN released_at TIMESTAMP WITH TIME ZONE;

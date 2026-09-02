@@ -10,8 +10,10 @@ import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.ROLE_PRISONER
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.HoldType
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.SubAccountRef
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldRequest
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.ReleaseHoldRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldBalanceResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldResponse
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.ReleasedHoldResponse
 import java.time.Instant
 
 class HoldsIntegrationTest : IntegrationTestBase() {
@@ -205,6 +207,64 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         .bodyValue(createHoldRequest)
         .exchange()
         .expectStatus().isEqualTo(409)
+    }
+  }
+
+  @Nested
+  inner class PostHoldRelease {
+    @Test
+    fun `should return 200 ok and update the hold released status when a valid release is received`() {
+      val threeDaysInSeconds = 259200L
+      val legacyHoldNumber = 12345678L
+
+      val createHoldRequest = CreateHoldRequest(
+        prisonNumber = "A12345BC",
+        legacyHoldNumber = legacyHoldNumber,
+        subAccountRef = SubAccountRef.CASH,
+        createdAt = Instant.now(),
+        createdBy = "TEST",
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds),
+        isReleased = false,
+        description = "Damages to cell",
+        holdType = HoldType.HOA,
+        amount = 1000L,
+        holdLocation = "LEI",
+      )
+
+      val createdHold = webTestClient.post().uri("/holds")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .bodyValue(createHoldRequest)
+        .exchange()
+        .expectStatus().isCreated
+        .expectBody<HoldResponse>()
+        .returnResult()
+        .responseBody!!
+
+      val releaseTime = Instant.now()
+
+      val releaseRequest = ReleaseHoldRequest(
+        releaseDateTime = releaseTime,
+      )
+
+      val releasedHoldResponse = webTestClient.post().uri("/holds/${createdHold.id}/release")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .bodyValue(releaseRequest)
+        .exchange()
+        .expectStatus().isOk
+        .expectBody<ReleasedHoldResponse>()
+        .returnResult()
+        .responseBody!!
+
+      assertThat(releasedHoldResponse.releasedAt).isEqualTo(releaseTime)
+      assertThat(releasedHoldResponse.amountReleased).isEqualTo(createdHold.amount)
+      assertThat(releasedHoldResponse.id).isEqualTo(createdHold.id)
+      assertThat(releasedHoldResponse.subAccountRef).isEqualTo(createdHold.subAccountRef)
+      assertThat(releasedHoldResponse.prisonNumber).isEqualTo(createHoldRequest.prisonNumber)
+
+      val holdEntity = integrationTestHelpers.selectHold(createdHold.id)
+
+      assertThat(holdEntity.isReleased).isTrue()
     }
   }
 

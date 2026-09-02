@@ -43,7 +43,7 @@ data class HoldEntity(
   val holdUntilDate: Instant? = null,
 
   @Column(name = "is_released", nullable = false, unique = false)
-  val isReleased: Boolean = false,
+  var isReleased: Boolean = false,
 
   @Column(name = "description", nullable = true, unique = false)
   val description: String? = null,
@@ -57,4 +57,7 @@ data class HoldEntity(
 
   @Column(name = "hold_location", nullable = false, unique = false)
   val holdLocation: String,
+
+  @Column(name = "released_at", nullable = true)
+  var releasedAt: Instant? = null,
 )
