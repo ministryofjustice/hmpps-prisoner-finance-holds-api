@@ -10,6 +10,7 @@ import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.ROLE_PRISONER
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.HoldType
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.SubAccountRef
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldRequest
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldBalanceResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldResponse
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -210,6 +211,306 @@ class HoldsIntegrationTest : IntegrationTestBase() {
       webTestClient.post().uri("/holds")
         .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RO)))
         .bodyValue(createHoldRequest)
+        .exchange()
+        .expectStatus()
+        .isForbidden
+    }
+  }
+
+  @Nested
+  inner class GetAccountHoldsBalance {
+
+    @Test
+    fun `should return holds balance for account`() {
+      val prisonNumber = "A12345BC"
+
+      val threeDaysInSeconds = 259200L
+
+      integrationTestHelpers.createHold(
+        prisonNumber = prisonNumber,
+        holdNumber = 12345678,
+        subAccountRef = SubAccountRef.CASH,
+        amount = 500L,
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds),
+        isReleased = false,
+      )
+
+      integrationTestHelpers.createHold(
+        prisonNumber = prisonNumber,
+        holdNumber = 12345679,
+        subAccountRef = SubAccountRef.SPENDS,
+        amount = 600L,
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds),
+        isReleased = false,
+      )
+
+      val result = webTestClient.get().uri("/holds/$prisonNumber/balance")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RO)))
+        .header("Content-Type", "application/json")
+        .exchange()
+        .expectStatus()
+        .isOk
+        .expectBody<HoldBalanceResponse>()
+        .returnResult()
+        .responseBody!!
+
+      assertThat(result.amount).isEqualTo(1100)
+    }
+
+    @Test
+    fun `should return holds balance for account and not include any released holds`() {
+      val prisonNumber = "A12345BC"
+
+      val threeDaysInSeconds = 259200L
+
+      integrationTestHelpers.createHold(
+        prisonNumber = prisonNumber,
+        holdNumber = 12345678,
+        subAccountRef = SubAccountRef.CASH,
+        amount = 600L,
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds),
+        isReleased = false,
+      )
+
+      integrationTestHelpers.createHold(
+        prisonNumber = prisonNumber,
+        holdNumber = 12345679,
+        subAccountRef = SubAccountRef.SPENDS,
+        amount = 600L,
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds),
+        isReleased = false,
+      )
+
+      integrationTestHelpers.createHold(
+        prisonNumber = prisonNumber,
+        holdNumber = 1234599,
+        subAccountRef = SubAccountRef.SPENDS,
+        amount = 222L,
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds),
+        isReleased = true,
+      )
+
+      val result = webTestClient.get().uri("/holds/$prisonNumber/balance")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RO)))
+        .header("Content-Type", "application/json")
+        .exchange()
+        .expectStatus()
+        .isOk
+        .expectBody<HoldBalanceResponse>()
+        .returnResult()
+        .responseBody!!
+
+      assertThat(result.amount).isEqualTo(1200)
+    }
+
+    @Test
+    fun `should return zero hold balance for account when there are no holds`() {
+      val prisonNumber = "A12345BC"
+
+      val result = webTestClient.get().uri("/holds/$prisonNumber/balance")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RO)))
+        .header("Content-Type", "application/json")
+        .exchange()
+        .expectStatus()
+        .isOk
+        .expectBody<HoldBalanceResponse>()
+        .returnResult()
+        .responseBody!!
+
+      assertThat(result.amount).isEqualTo(0)
+    }
+
+    @Test
+    fun `should return 400 BAD REQUEST when NULL byte is passed in the prison number`() {
+      val prisonNumber = "A12345BC\\0"
+
+      webTestClient.get().uri("/holds/$prisonNumber/balance")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RO)))
+        .header("Content-Type", "application/json")
+        .exchange()
+        .expectStatus()
+        .isBadRequest
+    }
+
+    @Test
+    fun `should return 403 forbidden when user does not have the correct role`() {
+      val prisonNumber = "A12345BC"
+
+      webTestClient.get().uri("/holds/$prisonNumber/balance")
+        .headers(setAuthorisation(roles = listOf("ROLE__WRONG_ROLE")))
+        .header("Content-Type", "application/json")
+        .exchange()
+        .expectStatus()
+        .isForbidden
+    }
+  }
+
+  @Nested
+  inner class GetSubAccountHoldsBalance {
+
+    @Test
+    fun `should return holds balance for the sub account`() {
+      val prisonNumber = "A12345BC"
+
+      val threeDaysInSeconds = 259200L
+
+      integrationTestHelpers.createHold(
+        prisonNumber = prisonNumber,
+        holdNumber = 12345678,
+        subAccountRef = SubAccountRef.CASH,
+        amount = 500L,
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds),
+        isReleased = false,
+      )
+
+      integrationTestHelpers.createHold(
+        prisonNumber = prisonNumber,
+        holdNumber = 12345679,
+        subAccountRef = SubAccountRef.SPENDS,
+        amount = 600L,
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds),
+        isReleased = false,
+      )
+
+      integrationTestHelpers.createHold(
+        prisonNumber = prisonNumber,
+        holdNumber = 12345689,
+        subAccountRef = SubAccountRef.SPENDS,
+        amount = 200L,
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds),
+        isReleased = false,
+      )
+
+      val result = webTestClient.get().uri("/holds/$prisonNumber/balance/SPENDS")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RO)))
+        .header("Content-Type", "application/json")
+        .exchange()
+        .expectStatus()
+        .isOk
+        .expectBody<HoldBalanceResponse>()
+        .returnResult()
+        .responseBody!!
+
+      assertThat(result.amount).isEqualTo(800)
+    }
+
+    @Test
+    fun `should return holds balance for the sub account and not include any released holds`() {
+      val prisonNumber = "A12345BC"
+
+      val threeDaysInSeconds = 259200L
+
+      integrationTestHelpers.createHold(
+        prisonNumber = prisonNumber,
+        holdNumber = 12345678,
+        subAccountRef = SubAccountRef.SPENDS,
+        amount = 300L,
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds),
+        isReleased = false,
+      )
+
+      integrationTestHelpers.createHold(
+        prisonNumber = prisonNumber,
+        holdNumber = 12345679,
+        subAccountRef = SubAccountRef.SPENDS,
+        amount = 600L,
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds),
+        isReleased = false,
+      )
+
+      integrationTestHelpers.createHold(
+        prisonNumber = prisonNumber,
+        holdNumber = 1234599,
+        subAccountRef = SubAccountRef.SPENDS,
+        amount = 222L,
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds),
+        isReleased = true,
+      )
+
+      val result = webTestClient.get().uri("/holds/$prisonNumber/balance/SPENDS")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RO)))
+        .header("Content-Type", "application/json")
+        .exchange()
+        .expectStatus()
+        .isOk
+        .expectBody<HoldBalanceResponse>()
+        .returnResult()
+        .responseBody!!
+
+      assertThat(result.amount).isEqualTo(900)
+    }
+
+    @Test
+    fun `should return zero hold balance for the sub account when there are no holds`() {
+      val prisonNumber = "A12345BC"
+
+      val result = webTestClient.get().uri("/holds/$prisonNumber/balance/SPENDS")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RO)))
+        .header("Content-Type", "application/json")
+        .exchange()
+        .expectStatus()
+        .isOk
+        .expectBody<HoldBalanceResponse>()
+        .returnResult()
+        .responseBody!!
+
+      assertThat(result.amount).isEqualTo(0)
+    }
+
+    @Test
+    fun `should return 400 BAD REQUEST when NULL byte is passed in the prison number`() {
+      val prisonNumber = "A12345BC\\0"
+
+      webTestClient.get().uri("/holds/$prisonNumber/balance/SPENDS")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RO)))
+        .header("Content-Type", "application/json")
+        .exchange()
+        .expectStatus()
+        .isBadRequest
+    }
+
+    @Test
+    fun `should return 400 BAD REQUEST when NULL byte is passed in the subAccount ref`() {
+      val prisonNumber = "A12345BC"
+
+      webTestClient.get().uri("/holds/$prisonNumber/balance/SPENDS\\0")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RO)))
+        .header("Content-Type", "application/json")
+        .exchange()
+        .expectStatus()
+        .isBadRequest
+    }
+
+    @Test
+    fun `should return 400 BAD REQUEST when subAccountRef is invalid`() {
+      val prisonNumber = "A12345BC"
+
+      webTestClient.get().uri("/holds/$prisonNumber/balance/INVALID")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RO)))
+        .header("Content-Type", "application/json")
+        .exchange()
+        .expectStatus()
+        .isBadRequest
+    }
+
+    @Test
+    fun `should return 403 forbidden when user does not have the correct role`() {
+      val prisonNumber = "A12345BC"
+
+      webTestClient.get().uri("/holds/$prisonNumber/balance/CASH")
+        .headers(setAuthorisation(roles = listOf("ROLE__WRONG_ROLE")))
+        .header("Content-Type", "application/json")
         .exchange()
         .expectStatus()
         .isForbidden
