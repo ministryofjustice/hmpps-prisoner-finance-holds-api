@@ -37,4 +37,4 @@ export default function verify_health() {
             [`Component "${componentName}" status is UP (found: "${info.status}")`]: i => i.status === 'UP',
         })
     }
-}gs
+}
