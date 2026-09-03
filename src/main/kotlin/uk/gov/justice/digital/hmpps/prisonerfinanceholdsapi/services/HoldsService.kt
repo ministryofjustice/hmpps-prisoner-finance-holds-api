@@ -1,6 +1,8 @@
 package uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.services
 
 import org.springframework.dao.DataIntegrityViolationException
+import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Sort
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.HoldRepository
@@ -10,7 +12,9 @@ import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.SubAcco
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldBalanceResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldResponse
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.PagedResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.ReleasedHoldResponse
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.utils.toPageResponse
 import java.time.Instant
 import java.util.UUID
 
@@ -78,5 +82,22 @@ class HoldsService(val holdRepository: HoldRepository) {
       amountReleased = holdToRelease.amount,
       releasedAt = holdToRelease.releasedAt!!,
     )
+  }
+
+  fun getHolds(prisonNumber: String, pageNumber: Int, pageSize: Int): PagedResponse<HoldResponse> {
+    val zeroIndexedPage: Int = pageNumber - 1
+
+    var pagedRequest = PageRequest.of(
+      zeroIndexedPage,
+      pageSize,
+      Sort.by(
+        Sort.Order.desc("createdAt"),
+      ),
+    )
+
+    return holdRepository.findByPrisonNumber(prisonNumber, pagedRequest)
+      .toPageResponse { content ->
+        content.map { HoldResponse.fromEntity(it) }
+      }
   }
 }

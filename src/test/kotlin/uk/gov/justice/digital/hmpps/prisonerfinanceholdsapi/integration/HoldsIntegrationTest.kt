@@ -14,10 +14,13 @@ import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.Crea
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.ReleaseHoldRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldBalanceResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldResponse
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.PagedResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.ReleasedHoldResponse
+import uk.gov.justice.hmpps.kotlin.common.ErrorResponse
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.UUID
+import kotlin.random.Random
 
 class HoldsIntegrationTest : IntegrationTestBase() {
 
@@ -221,6 +224,136 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         .expectStatus()
         .isForbidden
     }
+  }
+
+  @Nested
+  inner class GetHolds {
+
+    @Test
+    fun `should return empty list of holds for prison number`() {
+      val prisonNumber = "A12345BC"
+
+      val responseBody = webTestClient.get().uri("/holds/$prisonNumber")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .exchange()
+        .expectStatus()
+        .isOk
+        .expectBody<PagedResponse<HoldResponse>>()
+        .returnResult()
+        .responseBody!!
+
+      assertThat(responseBody.content).hasSize(0)
+      assertThat(responseBody.totalElements).isEqualTo(0)
+      assertThat(responseBody.totalPages).isEqualTo(1)
+      assertThat(responseBody.pageNumber).isEqualTo(1)
+    }
+
+    @Test
+    fun `should get paged list of holds for prison number`() {
+      val prisonNumber = "A12345BC"
+
+      repeat(25) {
+        integrationTestHelpers.createHold(
+          prisonNumber = prisonNumber,
+          holdNumber = Random.nextLong(),
+          subAccountRef = SubAccountRef.CASH,
+          amount = 10,
+          holdFromDate = Instant.now(),
+          holdUntilDate = Instant.now().plusSeconds(1),
+          isReleased = false,
+        )
+      }
+
+      val responseBody = webTestClient.get().uri("/holds/$prisonNumber")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .exchange()
+        .expectStatus()
+        .isOk
+        .expectBody<PagedResponse<HoldResponse>>()
+        .returnResult()
+        .responseBody!!
+
+      assertThat(responseBody.content).hasSize(25)
+      assertThat(responseBody.totalElements).isEqualTo(25)
+      assertThat(responseBody.totalPages).isEqualTo(1)
+      assertThat(responseBody.pageNumber).isEqualTo(1)
+    }
+
+    // 400 for invalid page number
+
+    // 400 for invalid page size
+
+    @Test
+    fun `should return 400 BAD REQUEST when prison number is invalid`() {
+      val prisonNumber = "A123 45BC"
+
+      webTestClient.get().uri("/holds/$prisonNumber")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .exchange()
+        .expectStatus()
+        .isBadRequest
+    }
+
+    @Test
+    fun `should return 400 BAD REQUEST when requesting a page that doesnt exist`() {
+      val prisonNumber = "A12345BC"
+
+      repeat(25) {
+        integrationTestHelpers.createHold(
+          prisonNumber = prisonNumber,
+          holdNumber = Random.nextLong(),
+          subAccountRef = SubAccountRef.CASH,
+          amount = 10,
+          holdFromDate = Instant.now(),
+          holdUntilDate = Instant.now().plusSeconds(1),
+          isReleased = false,
+        )
+      }
+
+      val responseBody = webTestClient.get().uri("/holds/$prisonNumber?pageNumber=3")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .exchange()
+        .expectStatus()
+        .isBadRequest
+        .expectBody<ErrorResponse>()
+        .returnResult()
+        .responseBody!!
+
+      assertThat(responseBody.userMessage).isEqualTo("Page requested is out of range")
+    }
+
+    @Test
+    fun `should get second page of results of holds for prison number`() {
+      val prisonNumber = "A12345BC"
+
+      repeat(25) {
+        integrationTestHelpers.createHold(
+          prisonNumber = prisonNumber,
+          holdNumber = Random.nextLong(),
+          subAccountRef = SubAccountRef.CASH,
+          amount = 10,
+          holdFromDate = Instant.now(),
+          holdUntilDate = Instant.now().plusSeconds(1),
+          isReleased = false,
+        )
+      }
+
+      val responseBody = webTestClient.get().uri("/holds/$prisonNumber?pageSize=24&pageNumber=2")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .exchange()
+        .expectStatus()
+        .isOk
+        .expectBody<PagedResponse<HoldResponse>>()
+        .returnResult()
+        .responseBody!!
+
+      assertThat(responseBody.content).hasSize(1)
+      assertThat(responseBody.totalElements).isEqualTo(25)
+      assertThat(responseBody.totalPages).isEqualTo(2)
+      assertThat(responseBody.pageNumber).isEqualTo(2)
+    }
+
+    // 401, 403
   }
 
   @Nested
