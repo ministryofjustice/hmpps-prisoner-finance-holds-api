@@ -231,7 +231,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
 
     @Test
     fun `should return empty list of holds for prison number`() {
-      val prisonNumber = "A12345BC"
+      val prisonNumber = "A1235BC"
 
       val responseBody = webTestClient.get().uri("/holds/$prisonNumber")
         .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
@@ -244,13 +244,13 @@ class HoldsIntegrationTest : IntegrationTestBase() {
 
       assertThat(responseBody.content).hasSize(0)
       assertThat(responseBody.totalElements).isEqualTo(0)
-      assertThat(responseBody.totalPages).isEqualTo(1)
+      assertThat(responseBody.totalPages).isEqualTo(0)
       assertThat(responseBody.pageNumber).isEqualTo(1)
     }
 
     @Test
     fun `should get paged list of holds for prison number`() {
-      val prisonNumber = "A12345BC"
+      val prisonNumber = "A1235BC"
 
       repeat(25) {
         integrationTestHelpers.createHold(
@@ -279,9 +279,37 @@ class HoldsIntegrationTest : IntegrationTestBase() {
       assertThat(responseBody.pageNumber).isEqualTo(1)
     }
 
-    // 400 for invalid page number
+    @Test
+    fun `should return 400 BAD REQUEST when page number is invalid`() {
+      val prisonNumber = "A1345BC"
 
-    // 400 for invalid page size
+      val responseBody = webTestClient.get().uri("/holds/$prisonNumber?pageNumber=ABC")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .exchange()
+        .expectStatus()
+        .isBadRequest
+        .expectBody<ErrorResponse>()
+        .returnResult()
+        .responseBody!!
+
+      assertThat(responseBody.userMessage).isEqualTo("Parameter 'pageNumber' must be of type int")
+    }
+
+    @Test
+    fun `should return 400 BAD REQUEST when page size is invalid`() {
+      val prisonNumber = "A12345BC"
+
+      val responseBody = webTestClient.get().uri("/holds/$prisonNumber?pageSize=ABC")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .exchange()
+        .expectStatus()
+        .isBadRequest
+        .expectBody<ErrorResponse>()
+        .returnResult()
+        .responseBody!!
+
+      assertThat(responseBody.userMessage).isEqualTo("Parameter 'pageSize' must be of type int")
+    }
 
     @Test
     fun `should return 400 BAD REQUEST when prison number is invalid`() {
@@ -296,7 +324,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
 
     @Test
     fun `should return 400 BAD REQUEST when requesting a page that doesnt exist`() {
-      val prisonNumber = "A12345BC"
+      val prisonNumber = "A1245BC"
 
       repeat(25) {
         integrationTestHelpers.createHold(
@@ -324,7 +352,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
 
     @Test
     fun `should get second page of results of holds for prison number`() {
-      val prisonNumber = "A12345BC"
+      val prisonNumber = "A1245BC"
 
       repeat(25) {
         integrationTestHelpers.createHold(
@@ -353,7 +381,16 @@ class HoldsIntegrationTest : IntegrationTestBase() {
       assertThat(responseBody.pageNumber).isEqualTo(2)
     }
 
-    // 401, 403
+    @Test
+    fun `should return 403 forbidden when user does not have the correct role`() {
+      val prisonNumber = "A9971EC"
+
+      webTestClient.get().uri("/holds/$prisonNumber")
+        .headers(setAuthorisation(roles = listOf("INVALID_ROLE")))
+        .exchange()
+        .expectStatus()
+        .isForbidden
+    }
   }
 
   @Nested
@@ -527,7 +564,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
 
     @Test
     fun `should return holds balance for account`() {
-      val prisonNumber = "A12345BC"
+      val prisonNumber = "A1245BC"
 
       val threeDaysInSeconds = 259200L
 
@@ -566,7 +603,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
 
     @Test
     fun `should return holds balance for account and not include any released holds`() {
-      val prisonNumber = "A12345BC"
+      val prisonNumber = "A1345BC"
 
       val threeDaysInSeconds = 259200L
 
@@ -615,7 +652,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
 
     @Test
     fun `should return zero hold balance for account when there are no holds`() {
-      val prisonNumber = "A12345BC"
+      val prisonNumber = "A1345BC"
 
       val result = webTestClient.get().uri("/holds/$prisonNumber/balance")
         .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RO)))
@@ -644,7 +681,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
 
     @Test
     fun `should return 403 forbidden when user does not have the correct role`() {
-      val prisonNumber = "A12345BC"
+      val prisonNumber = "A1235BC"
 
       webTestClient.get().uri("/holds/$prisonNumber/balance")
         .headers(setAuthorisation(roles = listOf("ROLE__WRONG_ROLE")))
@@ -660,7 +697,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
 
     @Test
     fun `should return holds balance for the sub account`() {
-      val prisonNumber = "A12345BC"
+      val prisonNumber = "A1245BC"
 
       val threeDaysInSeconds = 259200L
 
@@ -709,7 +746,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
 
     @Test
     fun `should return holds balance for the sub account and not include any released holds`() {
-      val prisonNumber = "A12345BC"
+      val prisonNumber = "A1235BC"
 
       val threeDaysInSeconds = 259200L
 
@@ -758,7 +795,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
 
     @Test
     fun `should return zero hold balance for the sub account when there are no holds`() {
-      val prisonNumber = "A12345BC"
+      val prisonNumber = "A1235BC"
 
       val result = webTestClient.get().uri("/holds/$prisonNumber/balance/SPENDS")
         .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RO)))
@@ -811,7 +848,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
 
     @Test
     fun `should return 403 forbidden when user does not have the correct role`() {
-      val prisonNumber = "A12345BC"
+      val prisonNumber = "A1235BC"
 
       webTestClient.get().uri("/holds/$prisonNumber/balance/CASH")
         .headers(setAuthorisation(roles = listOf("ROLE__WRONG_ROLE")))

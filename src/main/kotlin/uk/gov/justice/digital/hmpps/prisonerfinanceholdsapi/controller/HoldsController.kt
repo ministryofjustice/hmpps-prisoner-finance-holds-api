@@ -175,7 +175,13 @@ class HoldsController(val holdsService: HoldsService, private val holdRepository
   )
   @PreAuthorize("hasAnyAuthority('$ROLE_PRISONER_FINANCE__HOLDS__RW', '$ROLE_PRISONER_FINANCE__HOLDS__RO')")
   @GetMapping("/holds/{prisonNumber}/balance")
-  fun getAccountHoldBalance(@PathVariable prisonNumber: String): ResponseEntity<HoldBalanceResponse> {
+  fun getAccountHoldBalance(
+    @Pattern(
+      regexp = VALIDATION_REGEX_PRISON_NUMBER,
+      message = VALIDATION_MESSAGE_PRISON_NUMBER,
+    )
+    @PathVariable prisonNumber: String,
+  ): ResponseEntity<HoldBalanceResponse> {
     val holdBalanceResponse = holdsService.getHoldBalanceForAccount(prisonNumber)
 
     return ResponseEntity.status(HttpStatus.OK).body(holdBalanceResponse)
@@ -226,6 +232,10 @@ class HoldsController(val holdsService: HoldsService, private val holdRepository
   @PreAuthorize("hasAnyAuthority('$ROLE_PRISONER_FINANCE__HOLDS__RW', '$ROLE_PRISONER_FINANCE__HOLDS__RO')")
   @GetMapping("/holds/{prisonNumber}/balance/{subAccountRef}")
   fun getSubAccountHoldBalance(
+    @Pattern(
+      regexp = VALIDATION_REGEX_PRISON_NUMBER,
+      message = VALIDATION_MESSAGE_PRISON_NUMBER,
+    )
     @PathVariable prisonNumber: String,
     @PathVariable subAccountRef: String,
   ): ResponseEntity<HoldBalanceResponse> {
@@ -238,6 +248,48 @@ class HoldsController(val holdsService: HoldsService, private val holdRepository
     return ResponseEntity.status(HttpStatus.OK).body(holdBalanceResponse)
   }
 
+  @Operation(
+    summary = "Get all Holds for prisonNumber",
+    description = "Get All Holds for prisonNumber, if prisonNumber does not exist an empty list is returned",
+  )
+  @ApiResponses(
+    value = [
+      ApiResponse(
+        responseCode = "200",
+        description = "All Holds for prisonNumber, if prisonNumber does not exist an empty list is returned",
+      ),
+      ApiResponse(
+        responseCode = "400",
+        description = "Bad Request",
+        content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
+      ),
+      ApiResponse(
+        responseCode = "400",
+        description = "Page requested is out of range",
+        content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
+      ),
+      ApiResponse(
+        responseCode = "401",
+        description = "Unauthorized - requires a valid OAuth2 token",
+        content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
+      ),
+      ApiResponse(
+        responseCode = "403",
+        description = "Forbidden - requires an appropriate role",
+        content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
+      ),
+      ApiResponse(
+        responseCode = "500",
+        description = "Internal Server Error - An unexpected error occurred.",
+        content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
+      ),
+    ],
+  )
+  @SecurityRequirement(
+    name = "bearer-jwt",
+    scopes = [ROLE_PRISONER_FINANCE__HOLDS__RO, ROLE_PRISONER_FINANCE__HOLDS__RW],
+  )
+  @PreAuthorize("hasAnyAuthority('$ROLE_PRISONER_FINANCE__HOLDS__RW', '$ROLE_PRISONER_FINANCE__HOLDS__RO')")
   @GetMapping("/holds/{prisonNumber}")
   fun getHolds(
     @Pattern(
