@@ -230,7 +230,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
   inner class GetHolds {
 
     @Test
-    fun `should return empty list of holds for prison number`() {
+    fun `should return empty list of holds for prison number when there are no holds`() {
       val prisonNumber = "A1235BC"
 
       val responseBody = webTestClient.get().uri("/holds/$prisonNumber")
