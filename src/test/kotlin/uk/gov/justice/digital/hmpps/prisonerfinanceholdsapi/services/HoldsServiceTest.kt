@@ -7,7 +7,14 @@ import org.junit.jupiter.api.extension.ExtendWith
 import org.mockito.InjectMocks
 import org.mockito.Mock
 import org.mockito.junit.jupiter.MockitoExtension
+import org.mockito.kotlin.any
+import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.times
+import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import org.springframework.data.domain.PageImpl
+import org.springframework.data.domain.Pageable
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.HoldRepository
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.entities.HoldEntity
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.HoldType
@@ -118,6 +125,65 @@ class HoldsServiceTest {
 
       val response = holdsService.getHoldBalanceForSubAccount(prisonNumber, SubAccountRef.SPENDS)
       assertThat(response.amount).isEqualTo(0)
+    }
+  }
+
+  @Nested
+  inner class GetHolds {
+    @Test
+    fun `Should call repository and getHolds`() {
+      val holdEntity = HoldEntity(
+        prisonNumber = prisonNumber,
+        legacyHoldNumber = 1,
+        subAccountRef = SubAccountRef.CASH,
+        createdAt = Instant.now(),
+        createdBy = "",
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(1),
+        isReleased = false,
+        description = "",
+        holdType = HoldType.HOA,
+        amount = 1,
+        holdLocation = "LEI",
+        releasedAt = null,
+      )
+
+      val pageNumber = 1
+      val pageSize = 10
+      val pagedRepoResponse = PageImpl(listOf(holdEntity))
+
+      whenever { holdRepository.findByPrisonNumber(eq(prisonNumber), any()) }.thenReturn(
+        pagedRepoResponse,
+      )
+
+      val response = holdsService.getHolds(prisonNumber, pageNumber, pageSize)
+
+      val pageableCaptor = argumentCaptor<Pageable>()
+
+      verify(holdRepository, times(1))
+        .findByPrisonNumber(eq(prisonNumber), pageableCaptor.capture())
+
+      val capturedPageable = pageableCaptor.firstValue
+
+      assertThat(capturedPageable.pageNumber).isEqualTo(pageNumber - 1) // zero indexed
+      assertThat(capturedPageable.pageSize).isEqualTo(pageSize)
+
+      assertThat(response.content).hasSize(1)
+      assertThat(response.pageNumber).isEqualTo(pageNumber)
+
+      val holdResponse = response.content[0]
+      assertThat(holdResponse.prisonNumber).isEqualTo(holdEntity.prisonNumber)
+      assertThat(holdResponse.amount).isEqualTo(holdEntity.amount)
+      assertThat(holdResponse.holdLocation).isEqualTo(holdEntity.holdLocation)
+      assertThat(holdResponse.holdType).isEqualTo(holdEntity.holdType)
+      assertThat(holdResponse.subAccountRef).isEqualTo(holdEntity.subAccountRef)
+      assertThat(holdResponse.description).isEqualTo(holdEntity.description)
+      assertThat(holdResponse.id).isEqualTo(holdEntity.id)
+      assertThat(holdResponse.createdAt).isEqualTo(holdEntity.createdAt)
+      assertThat(holdResponse.createdBy).isEqualTo(holdEntity.createdBy)
+      assertThat(holdResponse.holdFromDate).isEqualTo(holdEntity.holdFromDate)
+      assertThat(holdResponse.isReleased).isEqualTo(holdEntity.isReleased)
+      assertThat(holdResponse.legacyHoldNumber).isEqualTo(holdEntity.legacyHoldNumber)
     }
   }
 }

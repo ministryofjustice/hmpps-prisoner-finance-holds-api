@@ -9,6 +9,8 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import jakarta.validation.ValidationException
+import jakarta.validation.constraints.Min
+import jakarta.validation.constraints.Pattern
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
@@ -16,7 +18,9 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.HoldRepository
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.ROLE_PRISONER_FINANCE__HOLDS__RO
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.ROLE_PRISONER_FINANCE__HOLDS__RW
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.TAG_HOLDS
@@ -25,14 +29,17 @@ import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.Crea
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.ReleaseHoldRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldBalanceResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldResponse
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.PagedResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.ReleasedHoldResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.services.HoldsService
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.utils.VALIDATION_MESSAGE_PRISON_NUMBER
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.utils.VALIDATION_REGEX_PRISON_NUMBER
 import uk.gov.justice.hmpps.kotlin.common.ErrorResponse
 import java.util.UUID
 
 @Tag(name = TAG_HOLDS)
 @RestController
-class HoldsController(val holdsService: HoldsService) {
+class HoldsController(val holdsService: HoldsService, private val holdRepository: HoldRepository) {
 
   @Operation(
     summary = "Create a new hold",
@@ -84,7 +91,12 @@ class HoldsController(val holdsService: HoldsService) {
       ApiResponse(
         responseCode = "200",
         description = "Hold Released",
-        content = [Content(mediaType = "application/json", schema = Schema(implementation = ReleasedHoldResponse::class))],
+        content = [
+          Content(
+            mediaType = "application/json",
+            schema = Schema(implementation = ReleasedHoldResponse::class),
+          ),
+        ],
       ),
       ApiResponse(
         responseCode = "400",
@@ -111,7 +123,10 @@ class HoldsController(val holdsService: HoldsService) {
   @SecurityRequirement(name = "bearer-jwt", scopes = [ROLE_PRISONER_FINANCE__HOLDS__RW])
   @PreAuthorize("hasAnyAuthority('$ROLE_PRISONER_FINANCE__HOLDS__RW')")
   @PostMapping("/holds/{id}/release")
-  fun releaseHoldById(@PathVariable @Valid id: UUID, @RequestBody @Valid releaseHoldRequest: ReleaseHoldRequest): ResponseEntity<ReleasedHoldResponse> {
+  fun releaseHoldById(
+    @PathVariable @Valid id: UUID,
+    @RequestBody @Valid releaseHoldRequest: ReleaseHoldRequest,
+  ): ResponseEntity<ReleasedHoldResponse> {
     val releasedHoldResponse = holdsService.releaseHoldById(id, releaseHoldRequest.releaseDateTime)
     return ResponseEntity.status(HttpStatus.OK).body(releasedHoldResponse)
   }
@@ -125,7 +140,12 @@ class HoldsController(val holdsService: HoldsService) {
       ApiResponse(
         responseCode = "200",
         description = "Overall hold balance of the account for all sub accounts",
-        content = [Content(mediaType = "application/json", schema = Schema(implementation = HoldBalanceResponse::class))],
+        content = [
+          Content(
+            mediaType = "application/json",
+            schema = Schema(implementation = HoldBalanceResponse::class),
+          ),
+        ],
       ),
       ApiResponse(
         responseCode = "400",
@@ -149,10 +169,19 @@ class HoldsController(val holdsService: HoldsService) {
       ),
     ],
   )
-  @SecurityRequirement(name = "bearer-jwt", scopes = [ROLE_PRISONER_FINANCE__HOLDS__RO, ROLE_PRISONER_FINANCE__HOLDS__RW])
+  @SecurityRequirement(
+    name = "bearer-jwt",
+    scopes = [ROLE_PRISONER_FINANCE__HOLDS__RO, ROLE_PRISONER_FINANCE__HOLDS__RW],
+  )
   @PreAuthorize("hasAnyAuthority('$ROLE_PRISONER_FINANCE__HOLDS__RW', '$ROLE_PRISONER_FINANCE__HOLDS__RO')")
   @GetMapping("/holds/{prisonNumber}/balance")
-  fun getAccountHoldBalance(@PathVariable prisonNumber: String): ResponseEntity<HoldBalanceResponse> {
+  fun getAccountHoldBalance(
+    @Pattern(
+      regexp = VALIDATION_REGEX_PRISON_NUMBER,
+      message = VALIDATION_MESSAGE_PRISON_NUMBER,
+    )
+    @PathVariable prisonNumber: String,
+  ): ResponseEntity<HoldBalanceResponse> {
     val holdBalanceResponse = holdsService.getHoldBalanceForAccount(prisonNumber)
 
     return ResponseEntity.status(HttpStatus.OK).body(holdBalanceResponse)
@@ -167,7 +196,12 @@ class HoldsController(val holdsService: HoldsService) {
       ApiResponse(
         responseCode = "200",
         description = "Hold balance of the sub account",
-        content = [Content(mediaType = "application/json", schema = Schema(implementation = HoldBalanceResponse::class))],
+        content = [
+          Content(
+            mediaType = "application/json",
+            schema = Schema(implementation = HoldBalanceResponse::class),
+          ),
+        ],
       ),
       ApiResponse(
         responseCode = "400",
@@ -191,10 +225,17 @@ class HoldsController(val holdsService: HoldsService) {
       ),
     ],
   )
-  @SecurityRequirement(name = "bearer-jwt", scopes = [ROLE_PRISONER_FINANCE__HOLDS__RO, ROLE_PRISONER_FINANCE__HOLDS__RW])
+  @SecurityRequirement(
+    name = "bearer-jwt",
+    scopes = [ROLE_PRISONER_FINANCE__HOLDS__RO, ROLE_PRISONER_FINANCE__HOLDS__RW],
+  )
   @PreAuthorize("hasAnyAuthority('$ROLE_PRISONER_FINANCE__HOLDS__RW', '$ROLE_PRISONER_FINANCE__HOLDS__RO')")
   @GetMapping("/holds/{prisonNumber}/balance/{subAccountRef}")
   fun getSubAccountHoldBalance(
+    @Pattern(
+      regexp = VALIDATION_REGEX_PRISON_NUMBER,
+      message = VALIDATION_MESSAGE_PRISON_NUMBER,
+    )
     @PathVariable prisonNumber: String,
     @PathVariable subAccountRef: String,
   ): ResponseEntity<HoldBalanceResponse> {
@@ -205,5 +246,66 @@ class HoldsController(val holdsService: HoldsService) {
     val holdBalanceResponse = holdsService.getHoldBalanceForSubAccount(prisonNumber, matchingSubAccountRef)
 
     return ResponseEntity.status(HttpStatus.OK).body(holdBalanceResponse)
+  }
+
+  @Operation(
+    summary = "Get all Holds for prisonNumber",
+    description = "Get All Holds for prisonNumber, if prisonNumber does not exist an empty list is returned",
+  )
+  @ApiResponses(
+    value = [
+      ApiResponse(
+        responseCode = "200",
+        description = "All Holds for prisonNumber, if prisonNumber does not exist an empty list is returned",
+      ),
+      ApiResponse(
+        responseCode = "400",
+        description = "Bad Request",
+        content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
+      ),
+      ApiResponse(
+        responseCode = "400",
+        description = "Page requested is out of range",
+        content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
+      ),
+      ApiResponse(
+        responseCode = "401",
+        description = "Unauthorized - requires a valid OAuth2 token",
+        content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
+      ),
+      ApiResponse(
+        responseCode = "403",
+        description = "Forbidden - requires an appropriate role",
+        content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
+      ),
+      ApiResponse(
+        responseCode = "500",
+        description = "Internal Server Error - An unexpected error occurred.",
+        content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
+      ),
+    ],
+  )
+  @SecurityRequirement(
+    name = "bearer-jwt",
+    scopes = [ROLE_PRISONER_FINANCE__HOLDS__RO, ROLE_PRISONER_FINANCE__HOLDS__RW],
+  )
+  @PreAuthorize("hasAnyAuthority('$ROLE_PRISONER_FINANCE__HOLDS__RW', '$ROLE_PRISONER_FINANCE__HOLDS__RO')")
+  @GetMapping("/holds/{prisonNumber}")
+  fun getHolds(
+    @Pattern(
+      regexp = VALIDATION_REGEX_PRISON_NUMBER,
+      message = VALIDATION_MESSAGE_PRISON_NUMBER,
+    )
+    @PathVariable prisonNumber: String,
+    @RequestParam @Min(1) pageNumber: Int = 1,
+    @RequestParam @Min(1) pageSize: Int = 25,
+  ): ResponseEntity<PagedResponse<HoldResponse>> {
+    val response = holdsService.getHolds(
+      prisonNumber = prisonNumber,
+      pageNumber = pageNumber,
+      pageSize = pageSize,
+    )
+
+    return ResponseEntity.status(HttpStatus.OK).body(response)
   }
 }

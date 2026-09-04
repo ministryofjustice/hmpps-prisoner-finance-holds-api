@@ -1,5 +1,7 @@
 package uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi
 
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Repository
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.entities.HoldEntity
@@ -14,4 +16,6 @@ interface HoldRepository : JpaRepository<HoldEntity, UUID> {
 
   fun findByPrisonNumberAndIsReleasedFalse(prisonNumber: String): List<HoldEntity>
   fun findHoldEntityById(holdId: UUID): HoldEntity?
+
+  fun findByPrisonNumber(prisonNumber: String, pagable: Pageable): Page<HoldEntity>
 }
