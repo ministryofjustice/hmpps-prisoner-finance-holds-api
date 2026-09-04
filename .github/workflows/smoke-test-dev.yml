@@ -12,6 +12,6 @@ jobs:
       - name: Run main Smoke Test script
         shell: bash
         env:
-          DOMAIN: prisoner-finance-general-ledger-api-dev.hmpps.service.justice.gov.uk
+          DOMAIN: prisoner-finance-holds-api-dev.hmpps.service.justice.gov.uk
         run: |
           k6 run --summary-mode=full --quiet ./scripts/K6/smoke-tests.js
