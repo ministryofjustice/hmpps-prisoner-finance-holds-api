@@ -92,7 +92,7 @@ class HoldsService(val holdRepository: HoldRepository) {
       pageSize,
       Sort.by(
         Sort.Order.desc("createdAt"),
-        Sort.Order.desc("id")
+        Sort.Order.desc("id"),
       ),
     )
 
