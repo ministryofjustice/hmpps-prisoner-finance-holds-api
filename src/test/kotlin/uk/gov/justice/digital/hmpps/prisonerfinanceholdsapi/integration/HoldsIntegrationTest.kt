@@ -280,6 +280,50 @@ class HoldsIntegrationTest : IntegrationTestBase() {
     }
 
     @Test
+    fun `should get paged list of active holds for prison number`() {
+      val prisonNumber = "A1235BC"
+
+      repeat(5) {
+        integrationTestHelpers.createHold(
+          prisonNumber = prisonNumber,
+          holdNumber = Random.nextLong(),
+          subAccountRef = SubAccountRef.CASH,
+          amount = 10,
+          holdFromDate = Instant.now(),
+          holdUntilDate = Instant.now().plusSeconds(1),
+          isReleased = false,
+        )
+      }
+
+      repeat(10) {
+        integrationTestHelpers.createHold(
+          prisonNumber = prisonNumber,
+          holdNumber = Random.nextLong(),
+          subAccountRef = SubAccountRef.CASH,
+          amount = 10,
+          holdFromDate = Instant.now(),
+          holdUntilDate = Instant.now().plusSeconds(1),
+          isReleased = true,
+        )
+      }
+
+      val responseBody = webTestClient.get().uri("/holds/$prisonNumber")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .exchange()
+        .expectStatus()
+        .isOk
+        .expectBody<PagedResponse<HoldResponse>>()
+        .returnResult()
+        .responseBody!!
+
+      assertThat(responseBody.content).hasSize(5)
+      assertThat(responseBody.totalElements).isEqualTo(5)
+      assertThat(responseBody.totalPages).isEqualTo(1)
+      assertThat(responseBody.pageNumber).isEqualTo(1)
+      assertThat(responseBody.content.all { !it.isReleased }).isTrue()
+    }
+
+    @Test
     fun `should return 400 BAD REQUEST when page number is invalid`() {
       val prisonNumber = "A1345BC"
 
