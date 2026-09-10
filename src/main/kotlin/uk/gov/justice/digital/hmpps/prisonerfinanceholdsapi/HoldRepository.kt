@@ -17,5 +17,5 @@ interface HoldRepository : JpaRepository<HoldEntity, UUID> {
   fun findByPrisonNumberAndIsReleasedFalse(prisonNumber: String): List<HoldEntity>
   fun findHoldEntityById(holdId: UUID): HoldEntity?
 
-  fun findByPrisonNumber(prisonNumber: String, pagable: Pageable): Page<HoldEntity>
+  fun findByPrisonNumberAndIsReleasedFalse(prisonNumber: String, pagable: Pageable): Page<HoldEntity>
 }

@@ -84,10 +84,10 @@ class HoldsService(val holdRepository: HoldRepository) {
     )
   }
 
-  fun getHolds(prisonNumber: String, pageNumber: Int, pageSize: Int): PagedResponse<HoldResponse> {
+  fun getActiveHolds(prisonNumber: String, pageNumber: Int, pageSize: Int): PagedResponse<HoldResponse> {
     val zeroIndexedPage: Int = pageNumber - 1
 
-    var pagedRequest = PageRequest.of(
+    val pagedRequest = PageRequest.of(
       zeroIndexedPage,
       pageSize,
       Sort.by(
@@ -96,7 +96,7 @@ class HoldsService(val holdRepository: HoldRepository) {
       ),
     )
 
-    return holdRepository.findByPrisonNumber(prisonNumber, pagedRequest)
+    return holdRepository.findByPrisonNumberAndIsReleasedFalse(prisonNumber, pagedRequest)
       .toPageResponse { content ->
         content.map { HoldResponse.fromEntity(it) }
       }

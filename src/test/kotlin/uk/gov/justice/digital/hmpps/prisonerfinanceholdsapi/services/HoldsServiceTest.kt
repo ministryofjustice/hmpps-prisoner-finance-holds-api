@@ -152,16 +152,16 @@ class HoldsServiceTest {
       val pageSize = 10
       val pagedRepoResponse = PageImpl(listOf(holdEntity))
 
-      whenever { holdRepository.findByPrisonNumber(eq(prisonNumber), any()) }.thenReturn(
+      whenever { holdRepository.findByPrisonNumberAndIsReleasedFalse(eq(prisonNumber), any()) }.thenReturn(
         pagedRepoResponse,
       )
 
-      val response = holdsService.getHolds(prisonNumber, pageNumber, pageSize)
+      val response = holdsService.getActiveHolds(prisonNumber, pageNumber, pageSize)
 
       val pageableCaptor = argumentCaptor<Pageable>()
 
       verify(holdRepository, times(1))
-        .findByPrisonNumber(eq(prisonNumber), pageableCaptor.capture())
+        .findByPrisonNumberAndIsReleasedFalse(eq(prisonNumber), pageableCaptor.capture())
 
       val capturedPageable = pageableCaptor.firstValue
 

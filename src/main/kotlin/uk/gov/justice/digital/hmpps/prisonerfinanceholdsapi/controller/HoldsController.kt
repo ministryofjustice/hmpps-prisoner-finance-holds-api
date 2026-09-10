@@ -20,7 +20,6 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
-import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.HoldRepository
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.ROLE_PRISONER_FINANCE__HOLDS__RO
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.ROLE_PRISONER_FINANCE__HOLDS__RW
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.TAG_HOLDS
@@ -39,7 +38,7 @@ import java.util.UUID
 
 @Tag(name = TAG_HOLDS)
 @RestController
-class HoldsController(val holdsService: HoldsService, private val holdRepository: HoldRepository) {
+class HoldsController(val holdsService: HoldsService) {
 
   @Operation(
     summary = "Create a new hold",
@@ -300,7 +299,7 @@ class HoldsController(val holdsService: HoldsService, private val holdRepository
     @RequestParam @Min(1) pageNumber: Int = 1,
     @RequestParam @Min(1) pageSize: Int = 25,
   ): ResponseEntity<PagedResponse<HoldResponse>> {
-    val response = holdsService.getHolds(
+    val response = holdsService.getActiveHolds(
       prisonNumber = prisonNumber,
       pageNumber = pageNumber,
       pageSize = pageSize,
