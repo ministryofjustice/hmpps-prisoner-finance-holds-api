@@ -20,10 +20,6 @@ configurations {
   }
 }
 
-ktlint {
-  version.set("1.7.1")
-}
-
 dependencies {
   implementation("uk.gov.justice.service.hmpps:hmpps-kotlin-spring-boot-starter:3.0.1")
   implementation("org.springframework.boot:spring-boot-starter-webflux")
