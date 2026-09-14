@@ -14,7 +14,7 @@ interface HoldRepository : JpaRepository<HoldEntity, UUID> {
 
   fun findByPrisonNumberAndSubAccountRefAndIsReleasedFalse(prisonNumber: String, subAccountRef: SubAccountRef): List<HoldEntity>
 
-  //  If pageable is passed, will return the Paged entities
+  //  If pageable is passed, will return entities in a page rather than a raw list
   fun findByPrisonNumberAndIsReleasedFalse(prisonNumber: String): List<HoldEntity>
   fun findByPrisonNumberAndIsReleasedFalse(prisonNumber: String, pageable: Pageable): Page<HoldEntity>
 
