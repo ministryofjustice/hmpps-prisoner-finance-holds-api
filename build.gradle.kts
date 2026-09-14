@@ -11,6 +11,17 @@ configure<JacocoPluginExtension> {
 }
 configurations {
   testImplementation { exclude(group = "org.junit.vintage") }
+  named("ktlint") {
+    resolutionStrategy.eachDependency {
+      if (requested.group == "org.jetbrains.kotlin") {
+        useVersion("2.2.0")
+      }
+    }
+  }
+}
+
+ktlint {
+  version.set("1.7.1")
 }
 
 dependencies {
