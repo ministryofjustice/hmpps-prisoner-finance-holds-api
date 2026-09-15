@@ -15,7 +15,7 @@ services:
 
   hmpps-prisoner-finance-holds-db:
     container_name: hmpps-prisoner-finance-holds-db
-    image: postgres:16
+    image: postgres:16.15
     restart: always
     networks:
       - hmpps
