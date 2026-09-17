@@ -114,3 +114,42 @@ Is available on a running local server at http://localhost:8080/swagger-ui/index
 - `/health`: provides information about the application health and its dependencies.
 - `/info`: provides information about the version of deployed application.
 
+## Generating API Clients & Models
+
+We use OpenAPI Generator to automatically generate the Kotlin client and data models for the General Ledger API.
+
+The configuration is in build.gradle.kts under apiSpecs. This creates two tasks:
+
+`writeGeneralledgerJson`: Downloads the latest API specification from the Dev environment to openapi-specs/generalledger.json.
+
+`buildGeneralledgerApiClient`: Generates the Kotlin data classes (Models) and WebClient interfaces (API) from the local JSON file.
+
+### How to Update
+If the General Ledger or holds API changes:
+
+Clean up existing clients
+
+```shell
+./gradlew cleanOpenApi
+```
+
+Download specs for new clients
+
+```shell
+./gradlew downloadAllOpenApiSpecs
+```
+
+Build new api clients
+
+```shell
+./gradlew buildAllApiClients
+```
+
+Verify & Regenerate: Check the diff in openapi-specs/generalledger.json and run a build to ensure the code compiles.
+
+Do a new build to verify everything is okay
+
+```sh
+./gradlew clean build
+```
+Commit: Commit the updated .json file. Do not commit the generated code in build/.

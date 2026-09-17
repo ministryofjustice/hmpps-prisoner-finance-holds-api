@@ -1,9 +1,19 @@
+import com.fasterxml.jackson.databind.ObjectMapper
+import org.jlleitschuh.gradle.ktlint.KtlintExtension
+import org.jlleitschuh.gradle.ktlint.tasks.KtLintCheckTask
+import org.jlleitschuh.gradle.ktlint.tasks.KtLintFormatTask
+import org.openapitools.generator.gradle.plugin.tasks.GenerateTask
+import java.net.URI
+import java.nio.file.Files
+
+
 plugins {
   id("uk.gov.justice.hmpps.gradle-spring-boot") version "11.0.8"
   kotlin("plugin.spring") version "2.4.20"
   id("org.jetbrains.kotlin.plugin.noarg") version "2.4.20"
   id("jacoco")
   kotlin("plugin.jpa") version "2.4.20"
+  id("org.openapi.generator") version "7.25.0"
 }
 
 configure<JacocoPluginExtension> {
@@ -92,6 +102,133 @@ tasks {
     theme = com.adarshr.gradle.testlogger.theme.ThemeType.MOCHA
   }
 }
+
+// ==============================================================================
+// OPEN API GENERATION CONFIGURATION
+// ==============================================================================
+
+val apiSpecs = mapOf(
+  "generalledger" to "https://prisoner-finance-general-ledger-api-dev.hmpps.service.justice.gov.uk/v3/api-docs",
+)
+
+val cleanOpenApi = tasks.register("cleanOpenApi") {
+  group = "openapi tools"
+  description = "Cleans up previously downloaded specs and generated API clients"
+
+  doLast {
+    file("$rootDir/openapi-specs").deleteRecursively()
+    file(layout.buildDirectory.dir("generated/openapi").get().asFile).deleteRecursively()
+  }
+}
+
+val downloadAllOpenApiSpecs = tasks.register("downloadAllOpenApiSpecs") {
+  group = "openapi tools"
+  description = "Downloads all API specifications"
+  dependsOn(cleanOpenApi)
+
+  doLast {
+    val destDir = file("$rootDir/openapi-specs")
+    if (!destDir.exists()) destDir.mkdirs()
+    val mapper = ObjectMapper()
+
+    apiSpecs.forEach { (name, url) ->
+      println("Downloading $name API spec from $url...")
+      val destFile = file("$destDir/$name.json")
+
+      val json = URI.create(url).toURL().readText()
+      val formattedJson = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(mapper.readTree(json))
+      Files.write(destFile.toPath(), formattedJson.toByteArray())
+
+      println("Saved to $destFile")
+    }
+  }
+}
+
+val generateTasks = apiSpecs.map { (name, _) ->
+  tasks.register<GenerateTask>("build${name.replaceFirstChar { it.titlecase() }}ApiClient") {
+    group = "openapi tools"
+    description = "Generates Kotlin client and models for $name"
+
+    generatorName.set("kotlin")
+    library.set("jvm-spring-webclient")
+
+    inputSpec.set("$rootDir/openapi-specs/$name.json")
+    outputDir.set(layout.buildDirectory.dir("generated/openapi").get().asFile.path)
+
+    modelPackage.set("uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.$name")
+    apiPackage.set("uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.clients.$name")
+
+    configOptions.set(
+      mapOf(
+        "serializationLibrary" to "jackson",
+        "dateLibrary" to "java8",
+        "enumPropertyNaming" to "original",
+        "modelMutable" to "false",
+        "useSpringBoot3" to "true",
+        "useTags" to "true",
+      ),
+    )
+
+    typeMappings.set(
+      mapOf(
+        "OffsetDateTime" to "java.time.Instant",
+        "DateTime" to "java.time.Instant",
+      ),
+    )
+    importMappings.set(
+      mapOf(
+        "java.time.LocalDateTime" to "java.time.Instant",
+      ),
+    )
+
+    globalProperties.set(
+      mapOf(
+        "models" to "",
+        "apis" to "",
+        "supportingFiles" to "",
+        "modelDocs" to "false",
+        "modelTests" to "false",
+        "apiDocs" to "false",
+        "apiTests" to "false",
+      ),
+    )
+  }
+}
+
+tasks.register("buildAllApiClients") {
+  group = "openapi tools"
+  description = "Cleans, downloads all JSON specs, and generates all API clients"
+  dependsOn(generateTasks)
+}
+
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
+  dependsOn(generateTasks)
+}
+
+tasks.withType<KtLintCheckTask> {
+  mustRunAfter(generateTasks)
+}
+tasks.withType<KtLintFormatTask> {
+  mustRunAfter(generateTasks)
+}
+
+sourceSets {
+  main {
+    java {
+      srcDir(layout.buildDirectory.dir("generated/openapi/src/main/kotlin"))
+    }
+  }
+}
+
+configure<KtlintExtension> {
+  filter {
+    exclude {
+      it.file.path.contains("generated/")
+    }
+  }
+}
+
+// JACOCO
 
 tasks.register<JacocoReport>("jacocoUnitTestReport") {
   dependsOn("unitTest")
