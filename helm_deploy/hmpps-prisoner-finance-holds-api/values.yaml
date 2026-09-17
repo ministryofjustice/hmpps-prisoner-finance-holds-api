@@ -68,5 +68,12 @@ generic-service:
       DB_USER: "database_username"
       DB_PASS: "database_password"
 
+    prisoner-finance-holds-queue-for-verify-hold-transactions:
+      VERIFY_HOLD_TRANSACTIONS_QUEUE_NAME: "sqs_queue_name"
+
+    prisoner-finance-holds-queue-for-verify-hold-transactions-dlq:
+      VERIFY_HOLD_TRANSACTIONS_QUEUE_NAME_DLQ_NAME: "sqs_queue_name"
+
+
 generic-prometheus-alerts:
   targetApplication: hmpps-prisoner-finance-holds-api

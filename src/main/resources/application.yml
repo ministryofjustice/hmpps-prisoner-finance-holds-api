@@ -85,3 +85,14 @@ springdoc:
     enabled: false
   swagger-ui:
     enabled: false
+
+
+hmpps.sqs:
+  queueAdminRole: ROLE_PRISONER_FINANCE_HOLDS_API_QUEUE_ADMIN
+  provider: ${SQS_PROVIDER:aws}
+  localstackUrl: ${SQS_LOCALSTACK_URL:http://localhost:4566}
+  queues:
+    verify_hold_transactions:
+      queueName: ${VERIFY_HOLD_TRANSACTIONS_QUEUE_NAME}
+      dlqName: ${VERIFY_HOLD_TRANSACTIONS_QUEUE_DLQ_NAME}
+      visibilityTimeout: 600

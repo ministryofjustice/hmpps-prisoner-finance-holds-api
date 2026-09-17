@@ -10,8 +10,11 @@ import org.springframework.boot.webtestclient.autoconfigure.AutoConfigureWebTest
 import org.springframework.context.annotation.Import
 import org.springframework.http.HttpHeaders
 import org.springframework.test.context.ActiveProfiles
+import org.springframework.test.context.DynamicPropertyRegistry
+import org.springframework.test.context.DynamicPropertySource
 import org.springframework.test.web.reactive.server.WebTestClient
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.ContainersConfig
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.integration.config.LocalStackConfig
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.integration.wiremock.GeneralLedgerApiExtension
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.integration.wiremock.GeneralLedgerApiExtension.Companion.generalLedgerApi
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.integration.wiremock.HmppsAuthApiExtension
@@ -53,5 +56,14 @@ abstract class IntegrationTestBase {
   protected fun stubPingWithResponse(statusAuth: Int, statusGeneralLedger: Int) {
     hmppsAuth.stubHealthPing(statusAuth)
     generalLedgerApi.stubHealthPing(statusGeneralLedger)
+  }
+
+  companion object {
+    @Suppress("unused")
+    @JvmStatic
+    @DynamicPropertySource
+    fun dynamicProperties(registry: DynamicPropertyRegistry) {
+      LocalStackConfig.setLocalStackProperties(LocalStackConfig.instance, registry)
+    }
   }
 }

@@ -23,3 +23,11 @@ general-ledger-api:
   client:
     id: ${GENERAL_LEDGER_API_CLIENT_ID:hmpps-prisoner-finance-general-ledger-api}
     secret: ${GENERAL_LEDGER_API_CLIENT_ID:clientsecret}
+
+
+hmpps.sqs:
+  provider: localstack
+  queues:
+    verify_hold_transactions:
+      queueName: "verify_hold_transactions"
+      dlqName: "verify_hold_transactions-dlq"

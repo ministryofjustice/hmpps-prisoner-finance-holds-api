@@ -14,12 +14,18 @@ import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.Hol
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.PagedResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.ReleasedHoldResponse
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.sqs.VerifyHoldTransaction
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.services.sqs.MessagePublisher
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.services.sqs.SqsQueues
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.utils.toPageResponse
 import java.time.Instant
 import java.util.UUID
 
 @Service
-class HoldsService(val holdRepository: HoldRepository) {
+class HoldsService(
+  val holdRepository: HoldRepository,
+  val messagePublisher: MessagePublisher
+) {
 
   fun createHold(createHoldRequest: CreateHoldRequest): HoldResponse {
     val newHold = HoldEntity(
@@ -39,6 +45,12 @@ class HoldsService(val holdRepository: HoldRepository) {
     )
     try {
       val savedHold = holdRepository.save(newHold)
+
+      messagePublisher.sendMessage(
+        VerifyHoldTransaction.fromEntity(savedHold),
+        SqsQueues.VERIFY_HOLD_TRANSACTIONS_QUEUE_ID
+      )
+
       return HoldResponse.fromEntity(savedHold)
     } catch (e: Exception) {
       val isDuplicateHold = e.message?.contains("uc_holds_legacy_hold_number") == true

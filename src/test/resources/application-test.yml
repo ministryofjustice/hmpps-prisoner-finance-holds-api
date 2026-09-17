@@ -24,3 +24,12 @@ springdoc:
 
 general-ledger-api:
   url: http://localhost:8091
+
+
+hmpps.sqs:
+  provider: localstack
+  queues:
+    verify_hold_transactions:
+      queueName: "verify_hold_transactions"
+      dlqName: "verify_hold_transactions-dlq"
+      visibilityTimeout: 600

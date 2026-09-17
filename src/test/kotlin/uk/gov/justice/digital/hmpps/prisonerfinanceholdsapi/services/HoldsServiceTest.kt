@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.mockito.InjectMocks
 import org.mockito.Mock
+import org.mockito.Mockito.mock
 import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
@@ -19,13 +20,21 @@ import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.HoldRepository
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.entities.HoldEntity
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.HoldType
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.SubAccountRef
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldRequest
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.sqs.VerifyHoldTransaction
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.services.sqs.MessagePublisher
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.services.sqs.SqsQueues
 import java.time.Instant
+import java.util.UUID
 
 @ExtendWith(MockitoExtension::class)
 class HoldsServiceTest {
 
   @Mock
   private lateinit var holdRepository: HoldRepository
+
+  @Mock
+  private lateinit var messagePublisher: MessagePublisher
 
   @InjectMocks
   private lateinit var holdsService: HoldsService
@@ -125,6 +134,67 @@ class HoldsServiceTest {
 
       val response = holdsService.getHoldBalanceForSubAccount(prisonNumber, SubAccountRef.SPENDS)
       assertThat(response.amount).isEqualTo(0)
+    }
+  }
+
+
+  @Nested
+  inner class createHold {
+
+    @Test
+    fun `should call repository and post message to queue to verify the transaction`() {
+      val holdRequest = CreateHoldRequest(
+        prisonNumber,
+        legacyHoldNumber = 1234,
+        SubAccountRef.SPENDS,
+        createdAt = Instant.now(),
+        createdBy = "Test",
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(1),
+        isReleased = false,
+        description = "test",
+        holdType = HoldType.HOA,
+        amount = 100,
+        holdLocation = "LEI"
+      )
+      val entity = HoldEntity(
+        id = UUID.randomUUID(),
+        prisonNumber = holdRequest.prisonNumber,
+        legacyHoldNumber = holdRequest.legacyHoldNumber,
+        subAccountRef = holdRequest.subAccountRef,
+        createdAt = holdRequest.createdAt,
+        createdBy = holdRequest.createdBy,
+        holdFromDate = holdRequest.holdFromDate,
+        holdUntilDate = holdRequest.holdUntilDate,
+        isReleased = holdRequest.isReleased,
+        description = holdRequest.description,
+        holdType = holdRequest.holdType,
+        amount = holdRequest.amount,
+        holdLocation = holdRequest.holdLocation,
+        releasedAt = null,
+      )
+
+      whenever { holdRepository.save(any<HoldEntity>()) }.thenReturn(entity)
+
+      holdsService.createHold(holdRequest)
+
+      verify(holdRepository, times(1)).save(any())
+
+      val queuePayloadCaptor  = argumentCaptor<VerifyHoldTransaction>()
+
+      verify(messagePublisher).sendMessage(
+        queuePayloadCaptor.capture(),
+        eq(SqsQueues.VERIFY_HOLD_TRANSACTIONS_QUEUE_ID),
+      )
+
+      val payload = queuePayloadCaptor.firstValue
+
+      assertThat(payload.prisonNumber).isEqualTo(prisonNumber)
+      assertThat(payload.createdAt).isEqualTo(holdRequest.createdAt)
+      assertThat(payload.holdFromDate).isEqualTo(holdRequest.holdFromDate)
+      assertThat(payload.subAccountRef).isEqualTo(holdRequest.subAccountRef)
+      assertThat(payload.amount).isEqualTo(holdRequest.amount)
+      assertThat(payload.holdType).isEqualTo(holdRequest.holdType)
     }
   }
 
