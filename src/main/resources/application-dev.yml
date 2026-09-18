@@ -8,9 +8,9 @@ spring:
     name: hmpps-prisoner-finance-holds-api
 
   datasource:
-    url: 'jdbc:postgresql://localhost:5436/holds?sslmode=prefer'
-    username: postgres
-    password: postgres
+    url: 'jdbc:postgresql://${DB_SERVER:localhost:5436}/${DB_NAME:holds}?sslmode=prefer'
+    username: ${DB_USER:postgres}
+    password: ${DB_PASS:postgres}
 
 springdoc:
   api-docs:
