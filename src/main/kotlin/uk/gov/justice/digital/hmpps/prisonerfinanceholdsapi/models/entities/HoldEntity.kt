@@ -60,4 +60,10 @@ data class HoldEntity(
 
   @Column(name = "released_at", nullable = true)
   var releasedAt: Instant? = null,
+
+  @Column(name = "HOLD_TRANSACTION_ID", nullable = true)
+  var holdTransactionId: UUID? = null,
+
+  @Column(name = "RELEASE_TRANSACTION_ID", nullable = true)
+  var releasedTransactionId: UUID? = null,
 )

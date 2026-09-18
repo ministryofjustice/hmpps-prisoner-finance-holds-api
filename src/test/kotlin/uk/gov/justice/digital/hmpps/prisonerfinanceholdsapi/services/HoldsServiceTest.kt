@@ -13,13 +13,19 @@ import org.mockito.kotlin.eq
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.Pageable
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.HoldRepository
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.clients.GeneralLedgerApiClient
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.entities.HoldEntity
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.HoldType
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.SubAccountRef
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.generalledger.CreatePostingRequest
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.generalledger.CreateTransactionRequest
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldRequest
 import java.time.Instant
+import java.util.UUID
 
 @ExtendWith(MockitoExtension::class)
 class HoldsServiceTest {
@@ -27,9 +33,11 @@ class HoldsServiceTest {
   @Mock
   private lateinit var holdRepository: HoldRepository
 
+  @Mock
+  private lateinit var generalLedgerApiClient: GeneralLedgerApiClient
+
   @InjectMocks
   private lateinit var holdsService: HoldsService
-
   val prisonNumber = "A12345BC"
 
   private fun createHoldEntity(
@@ -38,11 +46,13 @@ class HoldsServiceTest {
     subAccountRef: SubAccountRef,
     isReleased: Boolean,
     amount: Long,
+    holdTransactionId: UUID? = null,
+    createdAt: Instant = Instant.now(),
   ) = HoldEntity(
     prisonNumber = prisonNumber,
     legacyHoldNumber = holdNumber,
     subAccountRef = subAccountRef,
-    createdAt = Instant.now(),
+    createdAt = createdAt,
     createdBy = "",
     holdFromDate = Instant.now(),
     holdUntilDate = Instant.now().plusSeconds(1),
@@ -51,7 +61,198 @@ class HoldsServiceTest {
     holdType = HoldType.HOA,
     amount = amount,
     holdLocation = "LEI",
+    holdTransactionId = holdTransactionId,
   )
+
+  @Nested
+  inner class CreateHold {
+    @Test
+    fun `should create hold and call GL service to create the transaction`() {
+      val transactionGLId = UUID.randomUUID()
+      val prisonerCashAccountUUID = UUID.randomUUID()
+      val prisonHoldAccountUUID = UUID.randomUUID()
+
+      val createHoldRequest = CreateHoldRequest(
+        prisonNumber = prisonNumber,
+        legacyHoldNumber = 1234,
+        subAccountRef = SubAccountRef.CASH,
+        createdAt = Instant.now(),
+        createdBy = "TEST",
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(1),
+        isReleased = false,
+        description = "",
+        holdType = HoldType.HOA,
+        amount = 100,
+        holdLocation = "LEI",
+        prisonSubAccountId = prisonHoldAccountUUID,
+        prisonerSubAccountId = prisonerCashAccountUUID,
+      )
+
+      val holdEntity = createHoldEntity(
+        prisonNumber = createHoldRequest.prisonNumber,
+        holdNumber = createHoldRequest.legacyHoldNumber,
+        subAccountRef = createHoldRequest.subAccountRef,
+        isReleased = createHoldRequest.isReleased,
+        amount = createHoldRequest.amount,
+        createdAt = createHoldRequest.createdAt,
+      )
+
+      val transactionReqCaptor = argumentCaptor<CreateTransactionRequest>()
+      whenever {
+        generalLedgerApiClient.postTransaction(
+          transactionReqCaptor.capture(),
+          any(),
+          eq(createHoldRequest.holdLegacyTransactionId),
+        )
+      }.thenReturn(transactionGLId)
+
+      whenever { holdRepository.save(any<HoldEntity>()) }.thenReturn(holdEntity)
+
+      holdsService.createHold(createHoldRequest)
+
+      verify(generalLedgerApiClient, times(1))
+        .postTransaction(
+          any(),
+          any(),
+          eq(createHoldRequest.holdLegacyTransactionId),
+        )
+      verify(holdRepository, times(2)).save(any())
+
+      val transactionReq = transactionReqCaptor.firstValue
+
+      assertThat(transactionReq.amount).isEqualTo(createHoldRequest.amount)
+      assertThat(transactionReq.description).isEqualTo(createHoldRequest.description)
+      assertThat(transactionReq.reference).isEqualTo("")
+      assertThat(transactionReq.entrySequence).isEqualTo(1)
+      assertThat(transactionReq.timestamp).isEqualTo(createHoldRequest.createdAt)
+      assertThat(transactionReq.legacyTransactionId).isEqualTo(createHoldRequest.holdLegacyTransactionId)
+
+      val debitPosting = transactionReq.postings.first { it.type == CreatePostingRequest.Type.DR }
+      assertThat(debitPosting.subAccountId).isEqualTo(prisonerCashAccountUUID)
+      assertThat(debitPosting.entrySequence).isEqualTo(1)
+      assertThat(debitPosting.amount).isEqualTo(createHoldRequest.amount)
+
+      val creditPosting = transactionReq.postings.first { it.type == CreatePostingRequest.Type.CR }
+      assertThat(creditPosting.subAccountId).isEqualTo(prisonHoldAccountUUID)
+      assertThat(creditPosting.entrySequence).isEqualTo(2)
+      assertThat(creditPosting.amount).isEqualTo(createHoldRequest.amount)
+    }
+
+    @Test
+    fun `should not call general ledger when transaction mapping already exists`() {
+      val transactionGLId = UUID.randomUUID()
+      val prisonerCashAccountUUID = UUID.randomUUID()
+      val prisonHoldAccountUUID = UUID.randomUUID()
+
+      val createHoldRequest = CreateHoldRequest(
+        prisonNumber = prisonNumber,
+        legacyHoldNumber = 1234,
+        subAccountRef = SubAccountRef.CASH,
+        createdAt = Instant.now(),
+        createdBy = "TEST",
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(1),
+        isReleased = false,
+        description = "",
+        holdType = HoldType.HOA,
+        amount = 100,
+        holdLocation = "LEI",
+        prisonSubAccountId = prisonHoldAccountUUID,
+        prisonerSubAccountId = prisonerCashAccountUUID,
+      )
+
+      val holdEntity = createHoldEntity(
+        prisonNumber = createHoldRequest.prisonNumber,
+        holdNumber = createHoldRequest.legacyHoldNumber,
+        subAccountRef = createHoldRequest.subAccountRef,
+        isReleased = createHoldRequest.isReleased,
+        amount = createHoldRequest.amount,
+        holdTransactionId = transactionGLId,
+        createdAt = createHoldRequest.createdAt,
+      )
+
+      whenever { holdRepository.save(any<HoldEntity>()) }
+        .thenThrow(
+          DataIntegrityViolationException(
+            "duplicate key value violates unique constraint \"uc_holds_legacy_hold_number\"",
+          ),
+        )
+
+      whenever { holdRepository.getHoldEntityByLegacyHoldNumber(createHoldRequest.legacyHoldNumber) }.thenReturn(holdEntity)
+
+      holdsService.createHold(createHoldRequest)
+
+      verify(generalLedgerApiClient, times(0))
+        .postTransaction(any(), any(), any())
+      verify(holdRepository, times(1)).save(any())
+      verify(holdRepository, times(1)).getHoldEntityByLegacyHoldNumber(createHoldRequest.legacyHoldNumber)
+    }
+
+    @Test
+    fun `should check if the hold transaction mapping exists and try to create a transaction if it doesn't`() {
+      val transactionGLId = UUID.randomUUID()
+      val prisonerCashAccountUUID = UUID.randomUUID()
+      val prisonHoldAccountUUID = UUID.randomUUID()
+
+      val createHoldRequest = CreateHoldRequest(
+        prisonNumber = prisonNumber,
+        legacyHoldNumber = 1234,
+        subAccountRef = SubAccountRef.CASH,
+        createdAt = Instant.now(),
+        createdBy = "TEST",
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(1),
+        isReleased = false,
+        description = "",
+        holdType = HoldType.HOA,
+        amount = 100,
+        holdLocation = "LEI",
+        prisonSubAccountId = prisonHoldAccountUUID,
+        prisonerSubAccountId = prisonerCashAccountUUID,
+      )
+
+      val holdEntity = createHoldEntity(
+        prisonNumber = createHoldRequest.prisonNumber,
+        holdNumber = createHoldRequest.legacyHoldNumber,
+        subAccountRef = createHoldRequest.subAccountRef,
+        isReleased = createHoldRequest.isReleased,
+        amount = createHoldRequest.amount,
+        holdTransactionId = null,
+        createdAt = createHoldRequest.createdAt,
+      )
+
+      val transactionReqCaptor = argumentCaptor<CreateTransactionRequest>()
+      whenever {
+        generalLedgerApiClient.postTransaction(
+          transactionReqCaptor.capture(),
+          any(),
+          eq(createHoldRequest.holdLegacyTransactionId),
+        )
+      }.thenReturn(transactionGLId)
+
+      whenever { holdRepository.save(any<HoldEntity>()) }
+        .thenThrow(
+          DataIntegrityViolationException(
+            "duplicate key value violates unique constraint \"uc_holds_legacy_hold_number\"",
+          ),
+        )
+        .thenReturn(holdEntity)
+
+      whenever { holdRepository.getHoldEntityByLegacyHoldNumber(createHoldRequest.legacyHoldNumber) }.thenReturn(holdEntity)
+
+      holdsService.createHold(createHoldRequest)
+
+      verify(generalLedgerApiClient, times(1))
+        .postTransaction(
+          any(),
+          any(),
+          eq(createHoldRequest.holdLegacyTransactionId),
+        )
+      verify(holdRepository, times(2)).save(any())
+      verify(holdRepository, times(1)).getHoldEntityByLegacyHoldNumber(createHoldRequest.legacyHoldNumber)
+    }
+  }
 
   @Nested
   inner class GetHoldBalanceForAccount {
@@ -90,7 +291,12 @@ class HoldsServiceTest {
   inner class GetHoldBalanceForSubAccount {
     @Test
     fun `should return hold balance for prisonNumber sub account`() {
-      whenever { holdRepository.findByPrisonNumberAndSubAccountRefAndIsReleasedFalse(prisonNumber, SubAccountRef.SPENDS) }
+      whenever {
+        holdRepository.findByPrisonNumberAndSubAccountRefAndIsReleasedFalse(
+          prisonNumber,
+          SubAccountRef.SPENDS,
+        )
+      }
         .thenReturn(
           listOf(
             createHoldEntity(
@@ -118,7 +324,12 @@ class HoldsServiceTest {
 
     @Test
     fun `should return hold balance 0 when there are no holds in the sub account`() {
-      whenever { holdRepository.findByPrisonNumberAndSubAccountRefAndIsReleasedFalse(prisonNumber, SubAccountRef.SPENDS) }
+      whenever {
+        holdRepository.findByPrisonNumberAndSubAccountRefAndIsReleasedFalse(
+          prisonNumber,
+          SubAccountRef.SPENDS,
+        )
+      }
         .thenReturn(
           emptyList(),
         )

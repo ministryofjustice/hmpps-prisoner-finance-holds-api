@@ -5,10 +5,14 @@ import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.HoldRepository
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.clients.GeneralLedgerApiClient
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.CustomException
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.entities.HoldEntity
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.SubAccountRef
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.generalledger.CreatePostingRequest
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.generalledger.CreateTransactionRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldBalanceResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldResponse
@@ -19,8 +23,52 @@ import java.time.Instant
 import java.util.UUID
 
 @Service
-class HoldsService(val holdRepository: HoldRepository) {
+class HoldsService(
+  val holdRepository: HoldRepository,
+  val generalLedgerApiClient: GeneralLedgerApiClient,
+) {
 
+  fun sendTransactionToGLAndUpdateHold(holdEntity: HoldEntity, createHoldRequest: CreateHoldRequest): HoldResponse {
+    var savedHold = holdEntity
+    if (holdEntity.holdTransactionId == null) {
+      val transactionReq = CreateTransactionRequest(
+        reference = "", // not set for holds
+        description = holdEntity.description ?: "",
+        timestamp = holdEntity.createdAt,
+        amount = holdEntity.amount,
+        entrySequence = 1,
+        postings = listOf(
+          CreatePostingRequest(
+            type = CreatePostingRequest.Type.DR,
+            subAccountId = createHoldRequest.prisonerSubAccountId,
+            amount = holdEntity.amount,
+            entrySequence = 1,
+          ),
+          CreatePostingRequest(
+            type = CreatePostingRequest.Type.CR,
+            subAccountId = createHoldRequest.prisonSubAccountId,
+            amount = holdEntity.amount,
+            entrySequence = 2,
+          ),
+        ),
+        legacyTransactionId = createHoldRequest.holdLegacyTransactionId,
+      )
+
+      val idempotencyKey = UUID.randomUUID() // TODO add idempotency key service
+
+      val transactionGLId = generalLedgerApiClient.postTransaction(
+        transactionReq,
+        idempotencyKey,
+        transactionReq.legacyTransactionId,
+      )
+      savedHold.holdTransactionId = transactionGLId
+      savedHold = holdRepository.save(savedHold)
+    }
+
+    return HoldResponse.fromEntity(savedHold)
+  }
+
+  @Transactional(rollbackFor = [Exception::class, Error::class])
   fun createHold(createHoldRequest: CreateHoldRequest): HoldResponse {
     val newHold = HoldEntity(
       id = UUID.randomUUID(),
@@ -38,14 +86,15 @@ class HoldsService(val holdRepository: HoldRepository) {
       holdLocation = createHoldRequest.holdLocation,
     )
     try {
-      val savedHold = holdRepository.save(newHold)
-      return HoldResponse.fromEntity(savedHold)
+      val hold = holdRepository.save(newHold)
+      return sendTransactionToGLAndUpdateHold(hold, createHoldRequest)
     } catch (e: Exception) {
       val isDuplicateHold = e.message?.contains("uc_holds_legacy_hold_number") == true
       if (e is DataIntegrityViolationException && isDuplicateHold) {
-        val previouslyCreatedHold = holdRepository.getHoldEntityByLegacyHoldNumber(createHoldRequest.legacyHoldNumber)
-        return HoldResponse.fromEntity(previouslyCreatedHold!!)
+        val previouslyCreatedHold = holdRepository.getHoldEntityByLegacyHoldNumber(createHoldRequest.legacyHoldNumber)!!
+        return sendTransactionToGLAndUpdateHold(previouslyCreatedHold, createHoldRequest)
       }
+
       throw e
     }
   }

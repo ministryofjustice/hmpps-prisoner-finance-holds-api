@@ -114,8 +114,9 @@ class GeneralLedgerApiClient(
   fun postTransaction(request: CreateTransactionRequest, idempotencyKey: UUID, transactionId: Long? = null): UUID {
     log.info("Posting transaction. NOMIS transactionId: $transactionId. NOMIS entrySequence ${request.entrySequence}. Key: $idempotencyKey")
 
-    val response = transactionApi.postTransaction(idempotencyKey, request)
-      .block()
+    val response = handleExceptions(
+      { transactionApi.postTransaction(idempotencyKey, request).block() },
+    )
 
     return response?.id
       ?: throw IllegalStateException("New GL API returned null body for transaction ${request.reference}")

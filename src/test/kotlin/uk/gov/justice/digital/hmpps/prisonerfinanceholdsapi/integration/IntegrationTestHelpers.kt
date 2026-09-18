@@ -57,6 +57,10 @@ class IntegrationTestHelpers(
       holdType = HoldType.HOA,
       amount = amount,
       holdLocation = "LEI",
+      holdLegacyTransactionId = 123L,
+      prisonerSubAccountId = UUID.randomUUID(),
+      prisonSubAccountId = UUID.randomUUID(),
+      releaseLegacyTransactionId = null,
     )
 
     webTestClient.post().uri("/holds")

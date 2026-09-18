@@ -5,9 +5,13 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.context.annotation.Import
 import org.springframework.test.web.reactive.server.expectBody
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.ROLE_PRISONER_FINANCE__HOLDS__RO
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.ROLE_PRISONER_FINANCE__HOLDS__RW
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.health.GeneralLedgerApiHealthPing
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.HoldType
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.SubAccountRef
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldRequest
@@ -21,13 +25,20 @@ import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.UUID
 import kotlin.random.Random
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.integration.wiremock.GeneralLedgerApiExtension
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.integration.wiremock.GeneralLedgerApiExtension.Companion.generalLedgerApi
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.integration.wiremock.HmppsAuthApiExtension.Companion.hmppsAuth
 
-class HoldsIntegrationTest : IntegrationTestBase() {
+@ExtendWith(GeneralLedgerApiExtension::class)
+@Import(IntegrationTestHelpers::class)
+class HoldsIntegrationTest() : IntegrationTestBase() {
 
   val mapper = ObjectMapper()
 
   @BeforeEach
   fun setup() {
+    generalLedgerApi.resetAll()
+    hmppsAuth.stubGrantToken()
     integrationTestHelpers.clearDB()
   }
 
@@ -51,6 +62,10 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         holdType = HoldType.HOA,
         amount = 1000L,
         holdLocation = "LEI",
+        holdLegacyTransactionId = 123L,
+        prisonerSubAccountId = UUID.randomUUID(),
+        prisonSubAccountId = UUID.randomUUID(),
+        releaseLegacyTransactionId = null,
       )
 
       val responseBody = webTestClient.post().uri("/holds")
@@ -96,6 +111,10 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         holdType = HoldType.HOA,
         amount = 1000L,
         holdLocation = "LEI",
+        holdLegacyTransactionId = 123L,
+        prisonerSubAccountId = UUID.randomUUID(),
+        prisonSubAccountId = UUID.randomUUID(),
+        releaseLegacyTransactionId = null,
       )
 
       val createdHold = webTestClient.post().uri("/holds")
@@ -215,6 +234,10 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         holdType = HoldType.HOA,
         amount = 1000L,
         holdLocation = "LEI",
+        holdLegacyTransactionId = 123L,
+        prisonerSubAccountId = UUID.randomUUID(),
+        prisonSubAccountId = UUID.randomUUID(),
+        releaseLegacyTransactionId = null,
       )
 
       webTestClient.post().uri("/holds")
@@ -252,16 +275,17 @@ class HoldsIntegrationTest : IntegrationTestBase() {
     fun `should get paged list of holds for prison number`() {
       val prisonNumber = "A1235BC"
 
-      repeat(25) {
+      repeat(25) { i ->
         integrationTestHelpers.createHold(
           prisonNumber = prisonNumber,
           holdNumber = Random.nextLong(),
           subAccountRef = SubAccountRef.CASH,
-          amount = 10,
+          amount = 10L + i,
           holdFromDate = Instant.now(),
           holdUntilDate = Instant.now().plusSeconds(1),
           isReleased = false,
         )
+        generalLedgerApi.stubPostTransaction(amount = 10L + i)
       }
 
       val responseBody = webTestClient.get().uri("/holds/$prisonNumber")
@@ -457,6 +481,10 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         holdType = HoldType.HOA,
         amount = 1000L,
         holdLocation = "LEI",
+        holdLegacyTransactionId = 123L,
+        prisonerSubAccountId = UUID.randomUUID(),
+        prisonSubAccountId = UUID.randomUUID(),
+        releaseLegacyTransactionId = null,
       )
 
       val createdHold = webTestClient.post().uri("/holds")
@@ -512,6 +540,10 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         holdType = HoldType.HOA,
         amount = 99L,
         holdLocation = "LEI",
+        holdLegacyTransactionId = 123L,
+        prisonerSubAccountId = UUID.randomUUID(),
+        prisonSubAccountId = UUID.randomUUID(),
+        releaseLegacyTransactionId = null,
       )
 
       val createdHold = webTestClient.post().uri("/holds")
