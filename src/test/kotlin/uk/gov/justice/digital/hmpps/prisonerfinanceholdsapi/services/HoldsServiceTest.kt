@@ -67,7 +67,7 @@ class HoldsServiceTest {
   @Nested
   inner class CreateHold {
     @Test
-    fun `should create hold and call GL service to create the transaction`() {
+    fun `should call GL service to create the transaction and create hold`() {
       val transactionGLId = UUID.randomUUID()
       val prisonerCashAccountUUID = UUID.randomUUID()
       val prisonHoldAccountUUID = UUID.randomUUID()
@@ -117,7 +117,7 @@ class HoldsServiceTest {
           any(),
           eq(createHoldRequest.holdLegacyTransactionId),
         )
-      verify(holdRepository, times(2)).save(any())
+      verify(holdRepository, times(1)).save(any())
 
       val transactionReq = transactionReqCaptor.firstValue
 
@@ -140,7 +140,7 @@ class HoldsServiceTest {
     }
 
     @Test
-    fun `should not call general ledger when transaction mapping already exists`() {
+    fun `should not call general ledger when the hold already exists`() {
       val transactionGLId = UUID.randomUUID()
       val prisonerCashAccountUUID = UUID.randomUUID()
       val prisonHoldAccountUUID = UUID.randomUUID()
@@ -172,86 +172,18 @@ class HoldsServiceTest {
         createdAt = createHoldRequest.createdAt,
       )
 
-      whenever { holdRepository.save(any<HoldEntity>()) }
-        .thenThrow(
-          DataIntegrityViolationException(
-            "duplicate key value violates unique constraint \"uc_holds_legacy_hold_number\"",
-          ),
-        )
-
       whenever { holdRepository.getHoldEntityByLegacyHoldNumber(createHoldRequest.legacyHoldNumber) }.thenReturn(holdEntity)
 
       holdsService.createHold(createHoldRequest)
 
       verify(generalLedgerApiClient, times(0))
         .postTransaction(any(), any(), any())
-      verify(holdRepository, times(1)).save(any())
+      verify(holdRepository, times(0)).save(any())
       verify(holdRepository, times(1)).getHoldEntityByLegacyHoldNumber(createHoldRequest.legacyHoldNumber)
     }
 
-    @Test
-    fun `should check if the hold transaction mapping exists and try to create a transaction if it doesn't`() {
-      val transactionGLId = UUID.randomUUID()
-      val prisonerCashAccountUUID = UUID.randomUUID()
-      val prisonHoldAccountUUID = UUID.randomUUID()
 
-      val createHoldRequest = CreateHoldRequest(
-        prisonNumber = prisonNumber,
-        legacyHoldNumber = 1234,
-        subAccountRef = SubAccountRef.CASH,
-        createdAt = Instant.now(),
-        createdBy = "TEST",
-        holdFromDate = Instant.now(),
-        holdUntilDate = Instant.now().plusSeconds(1),
-        isReleased = false,
-        description = "",
-        holdType = HoldType.HOA,
-        amount = 100,
-        holdLocation = "LEI",
-        prisonSubAccountId = prisonHoldAccountUUID,
-        prisonerSubAccountId = prisonerCashAccountUUID,
-      )
-
-      val holdEntity = createHoldEntity(
-        prisonNumber = createHoldRequest.prisonNumber,
-        holdNumber = createHoldRequest.legacyHoldNumber,
-        subAccountRef = createHoldRequest.subAccountRef,
-        isReleased = createHoldRequest.isReleased,
-        amount = createHoldRequest.amount,
-        holdTransactionId = null,
-        createdAt = createHoldRequest.createdAt,
-      )
-
-      val transactionReqCaptor = argumentCaptor<CreateTransactionRequest>()
-      whenever {
-        generalLedgerApiClient.postTransaction(
-          transactionReqCaptor.capture(),
-          any(),
-          eq(createHoldRequest.holdLegacyTransactionId),
-        )
-      }.thenReturn(transactionGLId)
-
-      whenever { holdRepository.save(any<HoldEntity>()) }
-        .thenThrow(
-          DataIntegrityViolationException(
-            "duplicate key value violates unique constraint \"uc_holds_legacy_hold_number\"",
-          ),
-        )
-        .thenReturn(holdEntity)
-
-      whenever { holdRepository.getHoldEntityByLegacyHoldNumber(createHoldRequest.legacyHoldNumber) }.thenReturn(holdEntity)
-
-      holdsService.createHold(createHoldRequest)
-
-      verify(generalLedgerApiClient, times(1))
-        .postTransaction(
-          any(),
-          any(),
-          eq(createHoldRequest.holdLegacyTransactionId),
-        )
-      verify(holdRepository, times(2)).save(any())
-      verify(holdRepository, times(1)).getHoldEntityByLegacyHoldNumber(createHoldRequest.legacyHoldNumber)
-    }
+    // Add concurrent write test
   }
 
   @Nested
