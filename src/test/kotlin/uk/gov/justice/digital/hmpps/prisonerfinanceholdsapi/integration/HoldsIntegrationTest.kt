@@ -104,6 +104,9 @@ class HoldsIntegrationTest : IntegrationTestBase() {
     fun `should return 201 when the legacy hold number already exists`() {
       val threeDaysInSeconds = 259200L
       val legacyHoldNumber = 12345678L
+      val amount = 1000L
+      val prisonerSubAccountId = UUID.randomUUID()
+      val prisonSubAccountId = UUID.randomUUID()
 
       val createHoldRequest = CreateHoldRequest(
         prisonNumber = "A12345BC",
@@ -116,12 +119,18 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         isReleased = false,
         description = "Damages to cell",
         holdType = HoldType.HOA,
-        amount = 1000L,
+        amount = amount,
         holdLocation = "LEI",
         holdLegacyTransactionId = 123L,
-        prisonerSubAccountId = UUID.randomUUID(),
-        prisonSubAccountId = UUID.randomUUID(),
+        prisonerSubAccountId = prisonerSubAccountId,
+        prisonSubAccountId = prisonSubAccountId,
         releaseLegacyTransactionId = null,
+      )
+
+      generalLedgerApi.stubPostTransaction(
+        amount = amount,
+        debtorSubAccountUuid = prisonerSubAccountId.toString(),
+        creditorSubAccountUuid = prisonSubAccountId.toString(),
       )
 
       val createdHold = webTestClient.post().uri("/holds")
@@ -474,6 +483,8 @@ class HoldsIntegrationTest : IntegrationTestBase() {
     fun `should return 200 ok and update the hold released status when a valid release is received`() {
       val threeDaysInSeconds = 259200L
       val legacyHoldNumber = 12345678L
+      val prisonerSubAccountId = UUID.randomUUID()
+      val prisonSubAccountId = UUID.randomUUID()
 
       val createHoldRequest = CreateHoldRequest(
         prisonNumber = "A12345BC",
@@ -489,9 +500,15 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         amount = 1000L,
         holdLocation = "LEI",
         holdLegacyTransactionId = 123L,
-        prisonerSubAccountId = UUID.randomUUID(),
-        prisonSubAccountId = UUID.randomUUID(),
+        prisonerSubAccountId = prisonerSubAccountId,
+        prisonSubAccountId = prisonSubAccountId,
         releaseLegacyTransactionId = null,
+      )
+
+      generalLedgerApi.stubPostTransaction(
+        amount = 99L,
+        creditorSubAccountUuid = prisonSubAccountId.toString(),
+        debtorSubAccountUuid = prisonerSubAccountId.toString(),
       )
 
       val createdHold = webTestClient.post().uri("/holds")
@@ -534,6 +551,9 @@ class HoldsIntegrationTest : IntegrationTestBase() {
       val threeDaysInSeconds = 259200L
       val legacyHoldNumber = 12345679L
 
+      val prisonerSubAccountId = UUID.randomUUID()
+      val prisonSubAccountId = UUID.randomUUID()
+
       val createHoldRequest = CreateHoldRequest(
         prisonNumber = "A12345BA",
         legacyHoldNumber = legacyHoldNumber,
@@ -548,9 +568,15 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         amount = 99L,
         holdLocation = "LEI",
         holdLegacyTransactionId = 123L,
-        prisonerSubAccountId = UUID.randomUUID(),
-        prisonSubAccountId = UUID.randomUUID(),
+        prisonerSubAccountId = prisonerSubAccountId,
+        prisonSubAccountId = prisonSubAccountId,
         releaseLegacyTransactionId = null,
+      )
+
+      generalLedgerApi.stubPostTransaction(
+        amount = 99L,
+        creditorSubAccountUuid = prisonSubAccountId.toString(),
+        debtorSubAccountUuid = prisonerSubAccountId.toString(),
       )
 
       val createdHold = webTestClient.post().uri("/holds")

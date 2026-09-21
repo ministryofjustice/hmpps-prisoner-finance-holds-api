@@ -3,7 +3,6 @@ package uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.integration.wiremoc
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.github.tomakehurst.wiremock.WireMockServer
-import com.github.tomakehurst.wiremock.client.WireMock
 import com.github.tomakehurst.wiremock.client.WireMock.aResponse
 import com.github.tomakehurst.wiremock.client.WireMock.equalTo
 import com.github.tomakehurst.wiremock.client.WireMock.get
@@ -12,8 +11,6 @@ import com.github.tomakehurst.wiremock.client.WireMock.matchingJsonPath
 import com.github.tomakehurst.wiremock.client.WireMock.post
 import com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo
 import com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo
-import com.github.tomakehurst.wiremock.common.ConsoleNotifier
-import com.github.tomakehurst.wiremock.core.WireMockConfiguration
 import com.github.tomakehurst.wiremock.stubbing.Scenario.STARTED
 import org.junit.jupiter.api.extension.AfterAllCallback
 import org.junit.jupiter.api.extension.BeforeAllCallback
@@ -51,13 +48,7 @@ class GeneralLedgerApiExtension :
   }
 }
 
-class GeneralLedgerApiMockServer :
-  WireMockServer(
-    WireMockConfiguration.wireMockConfig()
-      .port(8091)
-      .notifier(ConsoleNotifier(true)),
-  ) {
-
+class GeneralLedgerApiMockServer : WireMockServer(WIREMOCK_PORT) {
   private val mapper = ObjectMapper().registerModule(JavaTimeModule())
 
   fun stubHealthPing(status: Int) {
@@ -115,7 +106,7 @@ class GeneralLedgerApiMockServer :
         matchingJsonPath("$[?(@.legacyTransactionId == '$legacyTransactionId')]"),
       )
     }
-    WireMock.stubFor(mapping)
+    stubFor(mapping)
 
     return response
   }
@@ -141,7 +132,7 @@ class GeneralLedgerApiMockServer :
           ),
       )
 
-    WireMock.stubFor(mapping)
+    stubFor(mapping)
   }
 
   fun stubGetAccount(
@@ -250,5 +241,9 @@ class GeneralLedgerApiMockServer :
             .withBody("[]"),
         ),
     )
+  }
+
+  companion object {
+    private const val WIREMOCK_PORT = 8091
   }
 }
