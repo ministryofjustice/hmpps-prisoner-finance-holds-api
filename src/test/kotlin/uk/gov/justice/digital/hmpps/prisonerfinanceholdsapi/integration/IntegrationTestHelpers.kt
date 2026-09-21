@@ -1,6 +1,7 @@
 package uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.integration
 
 import jakarta.persistence.EntityManager
+import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.http.HttpHeaders
@@ -9,6 +10,8 @@ import org.springframework.test.web.reactive.server.expectBody
 import org.springframework.transaction.annotation.Transactional
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.HoldRepository
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.ROLE_PRISONER_FINANCE__HOLDS__RW
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.integration.wiremock.GeneralLedgerApiExtension
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.integration.wiremock.GeneralLedgerApiExtension.Companion.generalLedgerApi
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.entities.HoldEntity
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.HoldType
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.SubAccountRef
@@ -18,11 +21,14 @@ import uk.gov.justice.hmpps.test.kotlin.auth.JwtAuthorisationHelper
 import java.time.Instant
 import java.util.UUID
 
+@ExtendWith(GeneralLedgerApiExtension::class)
 @TestConfiguration
 class IntegrationTestHelpers(
   private val jwtAuthHelper: JwtAuthorisationHelper,
   private val holdsRepository: HoldRepository,
 ) {
+
+  @Autowired
   lateinit var webTestClient: WebTestClient
 
   fun setWebClient(webClient: WebTestClient) {
@@ -44,6 +50,9 @@ class IntegrationTestHelpers(
     holdUntilDate: Instant,
     isReleased: Boolean,
   ) {
+    val prisonSubaccountUUID = UUID.randomUUID()
+    val prisonerSubaccountUUID = UUID.randomUUID()
+
     val createHoldRequest1 = CreateHoldRequest(
       prisonNumber = prisonNumber,
       legacyHoldNumber = holdNumber,
@@ -58,9 +67,15 @@ class IntegrationTestHelpers(
       amount = amount,
       holdLocation = "LEI",
       holdLegacyTransactionId = 123L,
-      prisonerSubAccountId = UUID.randomUUID(),
-      prisonSubAccountId = UUID.randomUUID(),
+      prisonerSubAccountId = prisonerSubaccountUUID,
+      prisonSubAccountId = prisonSubaccountUUID,
       releaseLegacyTransactionId = null,
+    )
+
+    generalLedgerApi.stubPostTransaction(
+      amount = amount,
+      creditorSubAccountUuid = prisonSubaccountUUID.toString(),
+      debtorSubAccountUuid = prisonerSubaccountUUID.toString(),
     )
 
     webTestClient.post().uri("/holds")

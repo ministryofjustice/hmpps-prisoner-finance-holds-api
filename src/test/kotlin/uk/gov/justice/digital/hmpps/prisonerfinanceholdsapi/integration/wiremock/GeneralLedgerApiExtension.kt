@@ -71,7 +71,6 @@ class GeneralLedgerApiMockServer :
     )
   }
 
-
   fun stubPostTransaction(
     creditorSubAccountUuid: String? = null,
     debtorSubAccountUuid: String? = null,
