@@ -13,7 +13,6 @@ import jakarta.validation.Valid
 import jakarta.validation.ValidationException
 import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.Pattern
-import org.apache.coyote.BadRequestException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.access.prepost.PreAuthorize
@@ -21,6 +20,7 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.CustomException
@@ -39,9 +39,6 @@ import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.utils.VALIDATION_MES
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.utils.VALIDATION_REGEX_PRISON_NUMBER
 import uk.gov.justice.hmpps.kotlin.common.ErrorResponse
 import java.util.UUID
-import org.springframework.http.HttpStatusCode
-import org.springframework.web.bind.annotation.RequestHeader
-
 
 @Tag(name = TAG_HOLDS)
 @RestController
@@ -99,12 +96,16 @@ class HoldsController(val holdsService: HoldsService) {
       "Idempotency-Key",
       required = true,
     )
-    idempotencyKey: UUID,
-    @Valid @RequestBody createHoldRequest: CreateHoldRequest): ResponseEntity<HoldResponse>
-  {
+    @Valid idempotencyKey: UUID,
+    @Valid @RequestBody createHoldRequest: CreateHoldRequest,
+  ): ResponseEntity<HoldResponse> {
     if (createHoldRequest.holdLegacyTransactionId == null) {
       throw CustomException("Cannot create a hold without a legacy transaction id.", status = HttpStatus.BAD_REQUEST)
     }
+    if (createHoldRequest.isReleased) {
+      throw CustomException("Cannot create a hold with isReleased set to true.", status = HttpStatus.BAD_REQUEST)
+    }
+
     val createdHoldResponse = holdsService.createHold(createHoldRequest, idempotencyKey)
     return ResponseEntity.status(201).body(createdHoldResponse)
   }

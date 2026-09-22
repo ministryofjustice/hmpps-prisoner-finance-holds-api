@@ -10,6 +10,7 @@ import org.springframework.test.web.reactive.server.expectBody
 import org.springframework.transaction.annotation.Transactional
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.HoldRepository
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.ROLE_PRISONER_FINANCE__HOLDS__RW
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.integration.IntegrationTestBase.Companion.setIdempotencyKey
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.integration.wiremock.GeneralLedgerApiExtension
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.integration.wiremock.GeneralLedgerApiExtension.Companion.generalLedgerApi
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.entities.HoldEntity
@@ -49,7 +50,7 @@ class IntegrationTestHelpers(
     holdFromDate: Instant,
     holdUntilDate: Instant,
     isReleased: Boolean,
-  ) {
+  ): HoldResponse {
     val prisonSubaccountUUID = UUID.randomUUID()
     val prisonerSubaccountUUID = UUID.randomUUID()
 
@@ -78,8 +79,9 @@ class IntegrationTestHelpers(
       debtorSubAccountUuid = prisonerSubaccountUUID.toString(),
     )
 
-    webTestClient.post().uri("/holds")
+    return webTestClient.post().uri("/holds")
       .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+      .headers(setIdempotencyKey(UUID.randomUUID()))
       .bodyValue(createHoldRequest1)
       .exchange()
       .expectStatus()
