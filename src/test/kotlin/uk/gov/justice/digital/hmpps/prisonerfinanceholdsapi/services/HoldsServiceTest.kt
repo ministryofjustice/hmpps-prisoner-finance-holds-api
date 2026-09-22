@@ -66,6 +66,8 @@ class HoldsServiceTest {
 
   @Nested
   inner class CreateHold {
+    val idempotencyKey = UUID.randomUUID()
+
     @Test
     fun `should call GL service to create the transaction and create hold`() {
       val transactionGLId = UUID.randomUUID()
@@ -109,12 +111,12 @@ class HoldsServiceTest {
 
       whenever { holdRepository.save(any<HoldEntity>()) }.thenReturn(holdEntity)
 
-      holdsService.createHold(createHoldRequest)
+      holdsService.createHold(createHoldRequest, idempotencyKey)
 
       verify(generalLedgerApiClient, times(1))
         .postTransaction(
           any(),
-          any(),
+          eq(idempotencyKey),
           eq(createHoldRequest.holdLegacyTransactionId),
         )
       verify(holdRepository, times(1)).save(any())
@@ -174,7 +176,7 @@ class HoldsServiceTest {
 
       whenever { holdRepository.getHoldEntityByLegacyHoldNumber(createHoldRequest.legacyHoldNumber) }.thenReturn(holdEntity)
 
-      holdsService.createHold(createHoldRequest)
+      holdsService.createHold(createHoldRequest, idempotencyKey)
 
       verify(generalLedgerApiClient, times(0))
         .postTransaction(any(), any(), any())
@@ -225,18 +227,18 @@ class HoldsServiceTest {
           any(),
           eq(createHoldRequest.holdLegacyTransactionId),
         )
-      }.thenReturn(transactionGLId)
+      }.thenReturn(transactionGLId, idempotencyKey)
 
       whenever { holdRepository.save(any<HoldEntity>()) }.thenThrow(
         DataIntegrityViolationException("DataIntegrityViolationException for constraint uc_holds_legacy_hold_number"),
       )
 
-      val response = holdsService.createHold(createHoldRequest)
+      val response = holdsService.createHold(createHoldRequest, idempotencyKey)
 
       verify(generalLedgerApiClient, times(1))
         .postTransaction(
           any(),
-          any(),
+          eq(idempotencyKey),
           eq(createHoldRequest.holdLegacyTransactionId),
         )
       verify(holdRepository, times(1)).save(any())

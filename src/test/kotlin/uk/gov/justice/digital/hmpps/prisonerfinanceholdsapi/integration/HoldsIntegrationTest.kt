@@ -212,9 +212,38 @@ class HoldsIntegrationTest : IntegrationTestBase() {
       }"""
 
       webTestClient.post().uri("/holds")
-        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RO)))
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
         .header("Content-Type", "application/json")
         .bodyValue(createHoldRequestJson)
+        .exchange()
+        .expectStatus()
+        .isBadRequest
+    }
+
+    @Test
+    fun `should return 400 bad request when legacy transaction ID is not provided`() {
+      val createHoldRequest = CreateHoldRequest(
+        prisonNumber = "A12345BC",
+        legacyHoldNumber = 12345678,
+        subAccountRef = SubAccountRef.CASH,
+        createdAt = Instant.now(),
+        createdBy = "TEST",
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(10),
+        isReleased = false,
+        description = "Damages to cell",
+        holdType = HoldType.HOA,
+        amount = 1000L,
+        holdLocation = "LEI",
+        prisonerSubAccountId = UUID.randomUUID(),
+        prisonSubAccountId = UUID.randomUUID(),
+        holdLegacyTransactionId = null, // null legacy transaction ID
+      )
+
+      webTestClient.post().uri("/holds")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .header("Content-Type", "application/json")
+        .bodyValue(createHoldRequest)
         .exchange()
         .expectStatus()
         .isBadRequest
@@ -264,7 +293,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
       }"""
 
       webTestClient.post().uri("/holds")
-        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RO)))
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
         .header("Content-Type", "application/json")
         .bodyValue(createHoldRequestJson)
         .exchange()

@@ -27,7 +27,7 @@ class HoldsService(
   val generalLedgerApiClient: GeneralLedgerApiClient,
 ) {
 
-  private fun saveHoldTransactionToGL(createHoldRequest: CreateHoldRequest): UUID {
+  private fun saveHoldTransactionToGL(createHoldRequest: CreateHoldRequest, idempotencyKey: UUID): UUID {
     val transactionReq = CreateTransactionRequest(
       reference = "", // not set for holds
       description = createHoldRequest.description ?: "",
@@ -51,8 +51,6 @@ class HoldsService(
       legacyTransactionId = createHoldRequest.holdLegacyTransactionId,
     )
 
-    val idempotencyKey = UUID.randomUUID() // TODO get idempotency key from request
-
     return generalLedgerApiClient.postTransaction(
       transactionReq,
       idempotencyKey,
@@ -60,13 +58,13 @@ class HoldsService(
     )
   }
 
-  fun createHold(createHoldRequest: CreateHoldRequest): HoldResponse {
+  fun createHold(createHoldRequest: CreateHoldRequest, idempotencyKey: UUID): HoldResponse {
     val existingHold = holdRepository.getHoldEntityByLegacyHoldNumber(createHoldRequest.legacyHoldNumber)
     if (existingHold != null) {
       return HoldResponse.fromEntity(existingHold)
     }
 
-    val transactionGLId = saveHoldTransactionToGL(createHoldRequest)
+    val transactionGLId = saveHoldTransactionToGL(createHoldRequest, idempotencyKey)
 
     val newHold = HoldEntity(
       id = UUID.randomUUID(),
