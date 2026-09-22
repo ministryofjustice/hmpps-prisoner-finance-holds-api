@@ -71,6 +71,11 @@ class HoldsController(val holdsService: HoldsService) {
         description = "Internal Server Error - An unexpected error occurred.",
         content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
       ),
+      ApiResponse(
+        responseCode = "502",
+        description = "Bad Gateway - General Ledger responded with an error",
+        content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
+      ),
     ],
   )
   @SecurityRequirement(name = "bearer-jwt", scopes = [ROLE_PRISONER_FINANCE__HOLDS__RW])

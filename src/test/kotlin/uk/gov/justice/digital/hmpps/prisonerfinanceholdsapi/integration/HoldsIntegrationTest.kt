@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.context.annotation.Import
+import org.springframework.http.HttpStatus
 import org.springframework.test.web.reactive.server.expectBody
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.ROLE_PRISONER_FINANCE__HOLDS__RO
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.ROLE_PRISONER_FINANCE__HOLDS__RW
@@ -153,6 +154,44 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         .responseBody!!
 
       assertThat(createdHold).isEqualTo(duplicate)
+    }
+
+    @Test
+    fun `should return 502 if GL responds with an error and not save the hold`() {
+      val threeDaysInSeconds = 259200L
+
+      val prisonerSubAccountId = UUID.randomUUID()
+      val prisonSubAccountId = UUID.randomUUID()
+
+      val createHoldRequest = CreateHoldRequest(
+        prisonNumber = "A12345BC",
+        legacyHoldNumber = 12345678,
+        subAccountRef = SubAccountRef.CASH,
+        createdAt = Instant.now(),
+        createdBy = "TEST",
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds),
+        isReleased = false,
+        description = "Damages to cell",
+        holdType = HoldType.HOA,
+        amount = 1000L,
+        holdLocation = "LEI",
+        holdLegacyTransactionId = 123L,
+        prisonerSubAccountId = prisonerSubAccountId,
+        prisonSubAccountId = prisonSubAccountId,
+        releaseLegacyTransactionId = null,
+      )
+
+      generalLedgerApi.stubPostTransactionReturnsInternalServerError()
+
+      webTestClient.post().uri("/holds")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .bodyValue(createHoldRequest)
+        .exchange()
+        .expectStatus().isEqualTo(HttpStatus.BAD_GATEWAY)
+        .expectBody<ErrorResponse>()
+        .returnResult()
+        .responseBody!!
     }
 
     @Test

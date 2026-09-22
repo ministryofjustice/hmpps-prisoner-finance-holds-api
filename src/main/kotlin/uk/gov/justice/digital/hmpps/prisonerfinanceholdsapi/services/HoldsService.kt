@@ -5,7 +5,6 @@ import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.HoldRepository
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.clients.GeneralLedgerApiClient
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.CustomException
@@ -28,82 +27,7 @@ class HoldsService(
   val generalLedgerApiClient: GeneralLedgerApiClient,
 ) {
 
-  @Transactional(rollbackFor = [Exception::class, Error::class])
-  fun sendTransactionToGLAndUpdateHold(holdEntity: HoldEntity, createHoldRequest: CreateHoldRequest): HoldResponse {
-    var savedHold = holdRepository.save(holdEntity)
-    if (holdEntity.holdTransactionId == null) {
-      val transactionReq = CreateTransactionRequest(
-        reference = "", // not set for holds
-        description = holdEntity.description ?: "",
-        timestamp = holdEntity.createdAt,
-        amount = holdEntity.amount,
-        entrySequence = 1,
-        postings = listOf(
-          CreatePostingRequest(
-            type = CreatePostingRequest.Type.DR,
-            subAccountId = createHoldRequest.prisonerSubAccountId,
-            amount = holdEntity.amount,
-            entrySequence = 1,
-          ),
-          CreatePostingRequest(
-            type = CreatePostingRequest.Type.CR,
-            subAccountId = createHoldRequest.prisonSubAccountId,
-            amount = holdEntity.amount,
-            entrySequence = 2,
-          ),
-        ),
-        legacyTransactionId = createHoldRequest.holdLegacyTransactionId,
-      )
-
-      val idempotencyKey = UUID.randomUUID() // TODO add idempotency key service
-
-      val transactionGLId = generalLedgerApiClient.postTransaction(
-        transactionReq,
-        idempotencyKey,
-        transactionReq.legacyTransactionId,
-      )
-      savedHold.holdTransactionId = transactionGLId
-      savedHold = holdRepository.saveAndFlush(savedHold)
-    }
-
-    return HoldResponse.fromEntity(savedHold)
-  }
-
-  fun createHoldOld(createHoldRequest: CreateHoldRequest): HoldResponse {
-    val newHold = HoldEntity(
-      id = UUID.randomUUID(),
-      prisonNumber = createHoldRequest.prisonNumber,
-      legacyHoldNumber = createHoldRequest.legacyHoldNumber,
-      subAccountRef = createHoldRequest.subAccountRef,
-      createdAt = createHoldRequest.createdAt,
-      createdBy = createHoldRequest.createdBy,
-      holdFromDate = createHoldRequest.holdFromDate,
-      holdUntilDate = createHoldRequest.holdUntilDate,
-      isReleased = createHoldRequest.isReleased,
-      description = createHoldRequest.description,
-      holdType = createHoldRequest.holdType,
-      amount = createHoldRequest.amount,
-      holdLocation = createHoldRequest.holdLocation,
-    )
-    try {
-      return sendTransactionToGLAndUpdateHold(newHold, createHoldRequest)
-    } catch (e: Exception) {
-      val isDuplicateHold = e.message?.contains("uc_holds_legacy_hold_number") == true
-      if (e is DataIntegrityViolationException && isDuplicateHold) {
-        val previouslyCreatedHold = holdRepository.getHoldEntityByLegacyHoldNumber(createHoldRequest.legacyHoldNumber)!!
-        return sendTransactionToGLAndUpdateHold(previouslyCreatedHold, createHoldRequest)
-      }
-
-      throw e
-    }
-  }
-
-  fun createHold(createHoldRequest: CreateHoldRequest): HoldResponse {
-    val holdEntity = holdRepository.getHoldEntityByLegacyHoldNumber(createHoldRequest.legacyHoldNumber)
-    if (holdEntity != null) {
-      return HoldResponse.fromEntity(holdEntity)
-    }
-
+  private fun saveHoldTransactionToGL(createHoldRequest: CreateHoldRequest): UUID {
     val transactionReq = CreateTransactionRequest(
       reference = "", // not set for holds
       description = createHoldRequest.description ?: "",
@@ -127,15 +51,24 @@ class HoldsService(
       legacyTransactionId = createHoldRequest.holdLegacyTransactionId,
     )
 
-    val idempotencyKey = UUID.randomUUID() // TODO add idempotency key service
+    val idempotencyKey = UUID.randomUUID() // TODO get idempotency key from request
 
-    val transactionGLId = generalLedgerApiClient.postTransaction(
+    return generalLedgerApiClient.postTransaction(
       transactionReq,
       idempotencyKey,
       transactionReq.legacyTransactionId,
     )
+  }
 
-    val hold = HoldEntity(
+  fun createHold(createHoldRequest: CreateHoldRequest): HoldResponse {
+    val existingHold = holdRepository.getHoldEntityByLegacyHoldNumber(createHoldRequest.legacyHoldNumber)
+    if (existingHold != null) {
+      return HoldResponse.fromEntity(existingHold)
+    }
+
+    val transactionGLId = saveHoldTransactionToGL(createHoldRequest)
+
+    val newHold = HoldEntity(
       id = UUID.randomUUID(),
       prisonNumber = createHoldRequest.prisonNumber,
       legacyHoldNumber = createHoldRequest.legacyHoldNumber,
@@ -152,11 +85,21 @@ class HoldsService(
       holdTransactionId = transactionGLId,
     )
 
-    return HoldResponse.fromEntity(
-      holdRepository.save(hold)
-    )
-  }
+    try {
+      return HoldResponse.fromEntity(
+        holdRepository.save(newHold),
+      )
+    } catch (e: Exception) {
+      val isDuplicateHold = e.message?.contains("uc_holds_legacy_hold_number") == true
+      if (e is DataIntegrityViolationException && isDuplicateHold) {
+        val holdEntity = holdRepository.getHoldEntityByLegacyHoldNumber(createHoldRequest.legacyHoldNumber)
+          ?: throw Exception("Unexpected hold not found after duplicate data integrity violation")
+        return HoldResponse.fromEntity(holdEntity)
+      }
 
+      throw e
+    }
+  }
 
   fun getHoldBalanceForAccount(prisonNumber: String): HoldBalanceResponse {
     val amount = holdRepository.findByPrisonNumberAndIsReleasedFalse(

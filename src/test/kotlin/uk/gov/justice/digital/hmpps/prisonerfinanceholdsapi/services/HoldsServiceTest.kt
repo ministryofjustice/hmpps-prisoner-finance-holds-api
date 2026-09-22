@@ -182,8 +182,67 @@ class HoldsServiceTest {
       verify(holdRepository, times(1)).getHoldEntityByLegacyHoldNumber(createHoldRequest.legacyHoldNumber)
     }
 
+    @Test
+    fun `should handle unique constrain violation and return the existing hold when the hold already exists`() {
+      // Unique constraint violation is expected during race conditions
+      val transactionGLId = UUID.randomUUID()
+      val prisonerCashAccountUUID = UUID.randomUUID()
+      val prisonHoldAccountUUID = UUID.randomUUID()
 
-    // Add concurrent write test
+      val createHoldRequest = CreateHoldRequest(
+        prisonNumber = prisonNumber,
+        legacyHoldNumber = 1234,
+        subAccountRef = SubAccountRef.CASH,
+        createdAt = Instant.now(),
+        createdBy = "TEST",
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(1),
+        isReleased = false,
+        description = "",
+        holdType = HoldType.HOA,
+        amount = 100,
+        holdLocation = "LEI",
+        prisonSubAccountId = prisonHoldAccountUUID,
+        prisonerSubAccountId = prisonerCashAccountUUID,
+      )
+
+      val holdEntity = createHoldEntity(
+        prisonNumber = createHoldRequest.prisonNumber,
+        holdNumber = createHoldRequest.legacyHoldNumber,
+        subAccountRef = createHoldRequest.subAccountRef,
+        isReleased = createHoldRequest.isReleased,
+        amount = createHoldRequest.amount,
+        createdAt = createHoldRequest.createdAt,
+      )
+
+      whenever { holdRepository.getHoldEntityByLegacyHoldNumber(createHoldRequest.legacyHoldNumber) }
+        .thenReturn(null)
+        .thenReturn(holdEntity)
+
+      whenever {
+        generalLedgerApiClient.postTransaction(
+          any(),
+          any(),
+          eq(createHoldRequest.holdLegacyTransactionId),
+        )
+      }.thenReturn(transactionGLId)
+
+      whenever { holdRepository.save(any<HoldEntity>()) }.thenThrow(
+        DataIntegrityViolationException("DataIntegrityViolationException for constraint uc_holds_legacy_hold_number"),
+      )
+
+      val response = holdsService.createHold(createHoldRequest)
+
+      verify(generalLedgerApiClient, times(1))
+        .postTransaction(
+          any(),
+          any(),
+          eq(createHoldRequest.holdLegacyTransactionId),
+        )
+      verify(holdRepository, times(1)).save(any())
+
+      assertThat(response.id).isEqualTo(holdEntity.id)
+    }
   }
 
   @Nested

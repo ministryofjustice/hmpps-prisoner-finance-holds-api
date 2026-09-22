@@ -135,6 +135,30 @@ class GeneralLedgerApiMockServer : WireMockServer(WIREMOCK_PORT) {
     stubFor(mapping)
   }
 
+  // POST /transactions
+  fun stubPostTransactionReturnsInternalServerError() {
+    var mapping = post(urlEqualTo("/transactions"))
+      .withHeader("Idempotency-Key", matching(".*"))
+      .willReturn(
+        aResponse()
+          .withHeader("Content-Type", MediaType.APPLICATION_JSON_VALUE)
+          .withStatus(500)
+          .withBody(
+            """
+                {
+                  "status": 500,
+                  "errorCode": "BadRequest",
+                  "userMessage": "Bad Request",
+                  "developerMessage": "Bad Request",
+                  "moreInfo": "more info"
+                }
+              """,
+          ),
+      )
+
+    stubFor(mapping)
+  }
+
   fun stubGetAccount(
     reference: String,
     returnUuid: UUID = UUID.randomUUID(),
