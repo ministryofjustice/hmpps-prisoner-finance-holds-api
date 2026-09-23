@@ -52,14 +52,11 @@ class HoldsIntegrationTest : IntegrationTestBase() {
   inner class PostHolds {
 
     val idempotencyKey = UUID.randomUUID()
+    val prisonerSubAccountId = UUID.randomUUID()
+    val prisonSubAccountId = UUID.randomUUID()
 
     @Test
     fun `should create a hold and return 201 created with the created hold`() {
-      val threeDaysInSeconds = 259200L
-
-      val prisonerSubAccountId = UUID.randomUUID()
-      val prisonSubAccountId = UUID.randomUUID()
-
       val createHoldRequest = CreateHoldRequest(
         prisonNumber = "A12345BC",
         legacyHoldNumber = 12345678,
@@ -67,7 +64,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         createdAt = Instant.now(),
         createdBy = "TEST",
         holdFromDate = Instant.now(),
-        holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds),
+        holdUntilDate = Instant.now().plusSeconds(1),
         isReleased = false,
         description = "Damages to cell",
         holdType = HoldType.HOA,
@@ -113,11 +110,8 @@ class HoldsIntegrationTest : IntegrationTestBase() {
 
     @Test
     fun `should return 201 when the legacy hold number already exists`() {
-      val threeDaysInSeconds = 259200L
       val legacyHoldNumber = 12345678L
       val amount = 1000L
-      val prisonerSubAccountId = UUID.randomUUID()
-      val prisonSubAccountId = UUID.randomUUID()
 
       val createHoldRequest = CreateHoldRequest(
         prisonNumber = "A12345BC",
@@ -126,7 +120,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         createdAt = Instant.now().truncatedTo(ChronoUnit.MILLIS),
         createdBy = "TEST",
         holdFromDate = Instant.now().truncatedTo(ChronoUnit.MILLIS),
-        holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds).truncatedTo(ChronoUnit.MILLIS),
+        holdUntilDate = Instant.now().plusSeconds(1).truncatedTo(ChronoUnit.MILLIS),
         isReleased = false,
         description = "Damages to cell",
         holdType = HoldType.HOA,
@@ -170,11 +164,6 @@ class HoldsIntegrationTest : IntegrationTestBase() {
 
     @Test
     fun `should return 502 if GL responds with an error and not save the hold`() {
-      val threeDaysInSeconds = 259200L
-
-      val prisonerSubAccountId = UUID.randomUUID()
-      val prisonSubAccountId = UUID.randomUUID()
-
       val createHoldRequest = CreateHoldRequest(
         prisonNumber = "A12345BC",
         legacyHoldNumber = 12345678,
@@ -182,7 +171,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         createdAt = Instant.now(),
         createdBy = "TEST",
         holdFromDate = Instant.now(),
-        holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds),
+        holdUntilDate = Instant.now().plusSeconds(1),
         isReleased = false,
         description = "Damages to cell",
         holdType = HoldType.HOA,
