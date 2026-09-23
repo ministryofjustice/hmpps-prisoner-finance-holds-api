@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotNull
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.HoldType
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.SubAccountRef
 import java.time.Instant
+import java.util.UUID
 
 data class CreateHoldRequest(
   @field:NotNull
@@ -51,4 +52,18 @@ data class CreateHoldRequest(
   @field:NotNull
   @field:Schema(description = "The location of the hold as a prison code", example = "LEI", required = true)
   val holdLocation: String,
+
+  @field:NotNull
+  @field:Schema(description = "The prisoner sub account reference ID in GL", required = true)
+  val prisonerSubAccountId: UUID,
+
+  @field:NotNull
+  @field:Schema(description = "The prison sub account reference ID in GL", required = true)
+  val prisonSubAccountId: UUID,
+
+  @field:Schema(description = "The NOMIS legacy transaction ID", example = "1234", required = false)
+  val holdLegacyTransactionId: Long? = null,
+
+  @field:Schema(description = "The NOMIS release legacy transaction ID", example = "1234", required = false)
+  val releaseLegacyTransactionId: Long? = null,
 )

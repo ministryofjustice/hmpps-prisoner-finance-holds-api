@@ -1,6 +1,8 @@
 package uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.controller
 
 import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.Parameter
+import io.swagger.v3.oas.annotations.enums.ParameterIn
 import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.responses.ApiResponse
@@ -18,8 +20,10 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.CustomException
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.ROLE_PRISONER_FINANCE__HOLDS__RO
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.ROLE_PRISONER_FINANCE__HOLDS__RW
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.TAG_HOLDS
@@ -71,13 +75,38 @@ class HoldsController(val holdsService: HoldsService) {
         description = "Internal Server Error - An unexpected error occurred.",
         content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
       ),
+      ApiResponse(
+        responseCode = "502",
+        description = "Bad Gateway - General Ledger responded with an error",
+        content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
+      ),
     ],
   )
   @SecurityRequirement(name = "bearer-jwt", scopes = [ROLE_PRISONER_FINANCE__HOLDS__RW])
   @PreAuthorize("hasAnyAuthority('$ROLE_PRISONER_FINANCE__HOLDS__RW')")
   @PostMapping("/holds")
-  fun postHold(@Valid @RequestBody createHoldRequest: CreateHoldRequest): ResponseEntity<HoldResponse> {
-    val createdHoldResponse = holdsService.createHold(createHoldRequest)
+  fun postHold(
+    @Parameter(
+      name = "Idempotency-Key",
+      `in` = ParameterIn.HEADER,
+      required = true,
+      description = "An Idempotency Key to ensure that transactions are not repeated",
+    )
+    @RequestHeader(
+      "Idempotency-Key",
+      required = true,
+    )
+    @Valid idempotencyKey: UUID,
+    @Valid @RequestBody createHoldRequest: CreateHoldRequest,
+  ): ResponseEntity<HoldResponse> {
+    if (createHoldRequest.holdLegacyTransactionId == null) {
+      throw CustomException("Cannot create a hold without a legacy transaction id.", status = HttpStatus.BAD_REQUEST)
+    }
+    if (createHoldRequest.isReleased) {
+      throw CustomException("Cannot create a hold with isReleased set to true.", status = HttpStatus.BAD_REQUEST)
+    }
+
+    val createdHoldResponse = holdsService.createHold(createHoldRequest, idempotencyKey)
     return ResponseEntity.status(201).body(createdHoldResponse)
   }
 

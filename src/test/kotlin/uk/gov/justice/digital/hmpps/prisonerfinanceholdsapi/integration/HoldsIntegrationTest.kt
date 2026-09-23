@@ -5,9 +5,18 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.context.annotation.Import
+import org.springframework.http.HttpStatus
 import org.springframework.test.web.reactive.server.expectBody
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.HoldRepository
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.ROLE_PRISONER_FINANCE__HOLDS__RO
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.ROLE_PRISONER_FINANCE__HOLDS__RW
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.integration.wiremock.GeneralLedgerApiExtension
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.integration.wiremock.GeneralLedgerApiExtension.Companion.generalLedgerApi
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.integration.wiremock.HmppsAuthApiExtension.Companion.hmppsAuth
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.entities.HoldEntity
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.HoldType
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.SubAccountRef
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldRequest
@@ -22,22 +31,32 @@ import java.time.temporal.ChronoUnit
 import java.util.UUID
 import kotlin.random.Random
 
+@ExtendWith(GeneralLedgerApiExtension::class)
+@Import(IntegrationTestHelpers::class)
 class HoldsIntegrationTest : IntegrationTestBase() {
 
+  @Autowired
+  lateinit var holdRepository: HoldRepository
   val mapper = ObjectMapper()
 
   @BeforeEach
   fun setup() {
+    generalLedgerApi.resetAll()
+    hmppsAuth.stubGrantToken()
     integrationTestHelpers.clearDB()
   }
+
+  val prisonNumber = "A9971EC"
 
   @Nested
   inner class PostHolds {
 
+    val idempotencyKey = UUID.randomUUID()
+    val prisonerSubAccountId = UUID.randomUUID()
+    val prisonSubAccountId = UUID.randomUUID()
+
     @Test
     fun `should create a hold and return 201 created with the created hold`() {
-      val threeDaysInSeconds = 259200L
-
       val createHoldRequest = CreateHoldRequest(
         prisonNumber = "A12345BC",
         legacyHoldNumber = 12345678,
@@ -45,16 +64,27 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         createdAt = Instant.now(),
         createdBy = "TEST",
         holdFromDate = Instant.now(),
-        holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds),
+        holdUntilDate = Instant.now().plusSeconds(1),
         isReleased = false,
         description = "Damages to cell",
         holdType = HoldType.HOA,
         amount = 1000L,
         holdLocation = "LEI",
+        holdLegacyTransactionId = 123L,
+        prisonerSubAccountId = prisonerSubAccountId,
+        prisonSubAccountId = prisonSubAccountId,
+        releaseLegacyTransactionId = null,
+      )
+
+      generalLedgerApi.stubPostTransaction(
+        debtorSubAccountUuid = prisonerSubAccountId.toString(),
+        creditorSubAccountUuid = prisonSubAccountId.toString(),
+        amount = 1000L,
       )
 
       val responseBody = webTestClient.post().uri("/holds")
         .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .headers(setIdempotencyKey(idempotencyKey))
         .bodyValue(createHoldRequest)
         .exchange()
         .expectStatus()
@@ -80,8 +110,8 @@ class HoldsIntegrationTest : IntegrationTestBase() {
 
     @Test
     fun `should return 201 when the legacy hold number already exists`() {
-      val threeDaysInSeconds = 259200L
       val legacyHoldNumber = 12345678L
+      val amount = 1000L
 
       val createHoldRequest = CreateHoldRequest(
         prisonNumber = "A12345BC",
@@ -90,16 +120,27 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         createdAt = Instant.now().truncatedTo(ChronoUnit.MILLIS),
         createdBy = "TEST",
         holdFromDate = Instant.now().truncatedTo(ChronoUnit.MILLIS),
-        holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds).truncatedTo(ChronoUnit.MILLIS),
+        holdUntilDate = Instant.now().plusSeconds(1).truncatedTo(ChronoUnit.MILLIS),
         isReleased = false,
         description = "Damages to cell",
         holdType = HoldType.HOA,
-        amount = 1000L,
+        amount = amount,
         holdLocation = "LEI",
+        holdLegacyTransactionId = 123L,
+        prisonerSubAccountId = prisonerSubAccountId,
+        prisonSubAccountId = prisonSubAccountId,
+        releaseLegacyTransactionId = null,
+      )
+
+      generalLedgerApi.stubPostTransaction(
+        amount = amount,
+        debtorSubAccountUuid = prisonerSubAccountId.toString(),
+        creditorSubAccountUuid = prisonSubAccountId.toString(),
       )
 
       val createdHold = webTestClient.post().uri("/holds")
         .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .headers(setIdempotencyKey(idempotencyKey))
         .bodyValue(createHoldRequest)
         .exchange()
         .expectStatus()
@@ -110,6 +151,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
 
       val duplicate = webTestClient.post().uri("/holds")
         .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .headers(setIdempotencyKey(idempotencyKey))
         .bodyValue(createHoldRequest)
         .exchange()
         .expectStatus().isEqualTo(201)
@@ -118,6 +160,40 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         .responseBody!!
 
       assertThat(createdHold).isEqualTo(duplicate)
+    }
+
+    @Test
+    fun `should return 502 if GL responds with an error and not save the hold`() {
+      val createHoldRequest = CreateHoldRequest(
+        prisonNumber = "A12345BC",
+        legacyHoldNumber = 12345678,
+        subAccountRef = SubAccountRef.CASH,
+        createdAt = Instant.now(),
+        createdBy = "TEST",
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(1),
+        isReleased = false,
+        description = "Damages to cell",
+        holdType = HoldType.HOA,
+        amount = 1000L,
+        holdLocation = "LEI",
+        holdLegacyTransactionId = 123L,
+        prisonerSubAccountId = prisonerSubAccountId,
+        prisonSubAccountId = prisonSubAccountId,
+        releaseLegacyTransactionId = null,
+      )
+
+      generalLedgerApi.stubPostTransactionReturnsInternalServerError()
+
+      webTestClient.post().uri("/holds")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .headers(setIdempotencyKey(idempotencyKey))
+        .bodyValue(createHoldRequest)
+        .exchange()
+        .expectStatus().isEqualTo(HttpStatus.BAD_GATEWAY)
+        .expectBody<ErrorResponse>()
+        .returnResult()
+        .responseBody!!
     }
 
     @Test
@@ -138,9 +214,99 @@ class HoldsIntegrationTest : IntegrationTestBase() {
       }"""
 
       webTestClient.post().uri("/holds")
-        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RO)))
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .headers(setIdempotencyKey(idempotencyKey))
         .header("Content-Type", "application/json")
         .bodyValue(createHoldRequestJson)
+        .exchange()
+        .expectStatus()
+        .isBadRequest
+    }
+
+    @Test
+    fun `should return 400 bad request when legacy transaction ID is not provided`() {
+      val createHoldRequest = CreateHoldRequest(
+        prisonNumber = "A12345BC",
+        legacyHoldNumber = 12345678,
+        subAccountRef = SubAccountRef.CASH,
+        createdAt = Instant.now(),
+        createdBy = "TEST",
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(10),
+        isReleased = false,
+        description = "Damages to cell",
+        holdType = HoldType.HOA,
+        amount = 1000L,
+        holdLocation = "LEI",
+        prisonerSubAccountId = UUID.randomUUID(),
+        prisonSubAccountId = UUID.randomUUID(),
+        holdLegacyTransactionId = null, // null legacy transaction ID
+      )
+
+      webTestClient.post().uri("/holds")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .headers(setIdempotencyKey(idempotencyKey))
+        .header("Content-Type", "application/json")
+        .bodyValue(createHoldRequest)
+        .exchange()
+        .expectStatus()
+        .isBadRequest
+    }
+
+    @Test
+    fun `should return 400 bad request when idempotency key is not provided`() {
+      val createHoldRequest = CreateHoldRequest(
+        prisonNumber = "A12345BC",
+        legacyHoldNumber = 12345678,
+        subAccountRef = SubAccountRef.CASH,
+        createdAt = Instant.now(),
+        createdBy = "TEST",
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(10),
+        isReleased = false,
+        description = "Damages to cell",
+        holdType = HoldType.HOA,
+        amount = 1000L,
+        holdLocation = "LEI",
+        prisonerSubAccountId = UUID.randomUUID(),
+        prisonSubAccountId = UUID.randomUUID(),
+        holdLegacyTransactionId = 1234,
+      )
+
+      webTestClient.post().uri("/holds")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .header("Content-Type", "application/json")
+        .bodyValue(createHoldRequest)
+        .exchange()
+        .expectStatus()
+        .isBadRequest
+    }
+
+    @Test
+    fun `should return 400 bad request when isReleased is set to true`() {
+      val createHoldRequest = CreateHoldRequest(
+        prisonNumber = "A12345BC",
+        legacyHoldNumber = 12345678,
+        subAccountRef = SubAccountRef.CASH,
+        createdAt = Instant.now(),
+        createdBy = "TEST",
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(10),
+        isReleased = true,
+        description = "Damages to cell",
+        holdType = HoldType.HOA,
+        amount = 1000L,
+        holdLocation = "LEI",
+        prisonerSubAccountId = UUID.randomUUID(),
+        prisonSubAccountId = UUID.randomUUID(),
+        holdLegacyTransactionId = 1234,
+      )
+
+      webTestClient.post().uri("/holds")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .headers(setIdempotencyKey(idempotencyKey))
+        .header("Content-Type", "application/json")
+        .bodyValue(createHoldRequest)
         .exchange()
         .expectStatus()
         .isBadRequest
@@ -165,6 +331,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
 
       webTestClient.post().uri("/holds")
         .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RO)))
+        .headers(setIdempotencyKey(idempotencyKey))
         .header("Content-Type", "application/json")
         .bodyValue(createHoldRequestJson)
         .exchange()
@@ -190,7 +357,8 @@ class HoldsIntegrationTest : IntegrationTestBase() {
       }"""
 
       webTestClient.post().uri("/holds")
-        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RO)))
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .headers(setIdempotencyKey(idempotencyKey))
         .header("Content-Type", "application/json")
         .bodyValue(createHoldRequestJson)
         .exchange()
@@ -215,10 +383,15 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         holdType = HoldType.HOA,
         amount = 1000L,
         holdLocation = "LEI",
+        holdLegacyTransactionId = 123L,
+        prisonerSubAccountId = UUID.randomUUID(),
+        prisonSubAccountId = UUID.randomUUID(),
+        releaseLegacyTransactionId = null,
       )
 
       webTestClient.post().uri("/holds")
         .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RO)))
+        .headers(setIdempotencyKey(idempotencyKey))
         .bodyValue(createHoldRequest)
         .exchange()
         .expectStatus()
@@ -252,16 +425,17 @@ class HoldsIntegrationTest : IntegrationTestBase() {
     fun `should get paged list of holds for prison number`() {
       val prisonNumber = "A1235BC"
 
-      repeat(25) {
+      repeat(25) { i ->
         integrationTestHelpers.createHold(
           prisonNumber = prisonNumber,
           holdNumber = Random.nextLong(),
           subAccountRef = SubAccountRef.CASH,
-          amount = 10,
+          amount = 10L + i,
           holdFromDate = Instant.now(),
           holdUntilDate = Instant.now().plusSeconds(1),
           isReleased = false,
         )
+        generalLedgerApi.stubPostTransaction(amount = 10L + i)
       }
 
       val responseBody = webTestClient.get().uri("/holds/$prisonNumber")
@@ -295,16 +469,26 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         )
       }
 
-      repeat(10) {
-        integrationTestHelpers.createHold(
+      repeat(10) { i ->
+        val releasedHoldEntity = HoldEntity(
           prisonNumber = prisonNumber,
-          holdNumber = Random.nextLong(),
+          legacyHoldNumber = i.toLong(),
           subAccountRef = SubAccountRef.CASH,
-          amount = 10,
+          createdAt = Instant.now(),
+          createdBy = "",
           holdFromDate = Instant.now(),
-          holdUntilDate = Instant.now().plusSeconds(1),
+          holdUntilDate = Instant.now().plusSeconds(30),
           isReleased = true,
+          description = "",
+          holdType = HoldType.HOA,
+          amount = 1L,
+          holdLocation = "LEI",
+          releasedAt = Instant.now().plusSeconds(30),
+          holdTransactionId = UUID.randomUUID(),
+          releasedTransactionId = UUID.randomUUID(),
         )
+
+        holdRepository.save(releasedHoldEntity)
       }
 
       val responseBody = webTestClient.get().uri("/holds/$prisonNumber")
@@ -441,32 +625,15 @@ class HoldsIntegrationTest : IntegrationTestBase() {
   inner class PostHoldRelease {
     @Test
     fun `should return 200 ok and update the hold released status when a valid release is received`() {
-      val threeDaysInSeconds = 259200L
-      val legacyHoldNumber = 12345678L
-
-      val createHoldRequest = CreateHoldRequest(
-        prisonNumber = "A12345BC",
-        legacyHoldNumber = legacyHoldNumber,
+      val createdHold = integrationTestHelpers.createHold(
+        prisonNumber = prisonNumber,
+        holdNumber = Random.nextLong(),
         subAccountRef = SubAccountRef.CASH,
-        createdAt = Instant.now(),
-        createdBy = "TEST",
+        amount = 10,
         holdFromDate = Instant.now(),
-        holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds),
+        holdUntilDate = Instant.now().plusSeconds(1),
         isReleased = false,
-        description = "Damages to cell",
-        holdType = HoldType.HOA,
-        amount = 1000L,
-        holdLocation = "LEI",
       )
-
-      val createdHold = webTestClient.post().uri("/holds")
-        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
-        .bodyValue(createHoldRequest)
-        .exchange()
-        .expectStatus().isCreated
-        .expectBody<HoldResponse>()
-        .returnResult()
-        .responseBody!!
 
       val releaseTime = Instant.now()
 
@@ -487,7 +654,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
       assertThat(releasedHoldResponse.amountReleased).isEqualTo(createdHold.amount)
       assertThat(releasedHoldResponse.id).isEqualTo(createdHold.id)
       assertThat(releasedHoldResponse.subAccountRef).isEqualTo(createdHold.subAccountRef)
-      assertThat(releasedHoldResponse.prisonNumber).isEqualTo(createHoldRequest.prisonNumber)
+      assertThat(releasedHoldResponse.prisonNumber).isEqualTo(createdHold.prisonNumber)
 
       val holdEntity = integrationTestHelpers.selectHold(createdHold.id)
 
@@ -496,32 +663,15 @@ class HoldsIntegrationTest : IntegrationTestBase() {
 
     @Test
     fun `should return 200 ok if the hold was already released, preserving the initial release time`() {
-      val threeDaysInSeconds = 259200L
-      val legacyHoldNumber = 12345679L
-
-      val createHoldRequest = CreateHoldRequest(
-        prisonNumber = "A12345BA",
-        legacyHoldNumber = legacyHoldNumber,
+      val createdHold = integrationTestHelpers.createHold(
+        prisonNumber = prisonNumber,
+        holdNumber = Random.nextLong(),
         subAccountRef = SubAccountRef.CASH,
-        createdAt = Instant.now(),
-        createdBy = "TEST",
+        amount = 10,
         holdFromDate = Instant.now(),
-        holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds),
+        holdUntilDate = Instant.now().plusSeconds(1),
         isReleased = false,
-        description = "hold",
-        holdType = HoldType.HOA,
-        amount = 99L,
-        holdLocation = "LEI",
       )
-
-      val createdHold = webTestClient.post().uri("/holds")
-        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
-        .bodyValue(createHoldRequest)
-        .exchange()
-        .expectStatus().isCreated
-        .expectBody<HoldResponse>()
-        .returnResult()
-        .responseBody!!
 
       val initialReleaseTime = Instant.now()
 
@@ -671,15 +821,25 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         isReleased = false,
       )
 
-      integrationTestHelpers.createHold(
+      val releasedHoldEntity = HoldEntity(
         prisonNumber = prisonNumber,
-        holdNumber = 1234599,
+        legacyHoldNumber = 12345,
         subAccountRef = SubAccountRef.SPENDS,
-        amount = 222L,
+        createdAt = Instant.now(),
+        createdBy = "",
         holdFromDate = Instant.now(),
         holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds),
         isReleased = true,
+        description = "",
+        holdType = HoldType.HOA,
+        amount = 1L,
+        holdLocation = "LEI",
+        releasedAt = Instant.now().plusSeconds(threeDaysInSeconds),
+        holdTransactionId = UUID.randomUUID(),
+        releasedTransactionId = UUID.randomUUID(),
       )
+
+      holdRepository.save(releasedHoldEntity)
 
       val result = webTestClient.get().uri("/holds/$prisonNumber/balance")
         .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RO)))
@@ -814,15 +974,25 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         isReleased = false,
       )
 
-      integrationTestHelpers.createHold(
+      val releasedHoldEntity = HoldEntity(
         prisonNumber = prisonNumber,
-        holdNumber = 1234599,
+        legacyHoldNumber = 12345,
         subAccountRef = SubAccountRef.SPENDS,
-        amount = 222L,
+        createdAt = Instant.now(),
+        createdBy = "",
         holdFromDate = Instant.now(),
         holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds),
         isReleased = true,
+        description = "",
+        holdType = HoldType.HOA,
+        amount = 1L,
+        holdLocation = "LEI",
+        releasedAt = Instant.now().plusSeconds(threeDaysInSeconds),
+        holdTransactionId = UUID.randomUUID(),
+        releasedTransactionId = UUID.randomUUID(),
       )
+
+      holdRepository.save(releasedHoldEntity)
 
       val result = webTestClient.get().uri("/holds/$prisonNumber/balance/SPENDS")
         .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RO)))

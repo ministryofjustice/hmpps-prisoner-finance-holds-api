@@ -6,9 +6,12 @@ import org.springframework.data.domain.Sort
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.HoldRepository
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.clients.GeneralLedgerApiClient
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.CustomException
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.entities.HoldEntity
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.SubAccountRef
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.generalledger.CreatePostingRequest
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.generalledger.CreateTransactionRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldBalanceResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldResponse
@@ -19,9 +22,50 @@ import java.time.Instant
 import java.util.UUID
 
 @Service
-class HoldsService(val holdRepository: HoldRepository) {
+class HoldsService(
+  val holdRepository: HoldRepository,
+  val generalLedgerApiClient: GeneralLedgerApiClient,
+) {
 
-  fun createHold(createHoldRequest: CreateHoldRequest): HoldResponse {
+  private fun saveHoldTransactionToGL(createHoldRequest: CreateHoldRequest, idempotencyKey: UUID): UUID {
+    val transactionReq = CreateTransactionRequest(
+      reference = "", // not set for holds
+      description = createHoldRequest.description ?: "",
+      timestamp = createHoldRequest.createdAt,
+      amount = createHoldRequest.amount,
+      entrySequence = 1,
+      postings = listOf(
+        CreatePostingRequest(
+          type = CreatePostingRequest.Type.DR,
+          subAccountId = createHoldRequest.prisonerSubAccountId,
+          amount = createHoldRequest.amount,
+          entrySequence = 1,
+        ),
+        CreatePostingRequest(
+          type = CreatePostingRequest.Type.CR,
+          subAccountId = createHoldRequest.prisonSubAccountId,
+          amount = createHoldRequest.amount,
+          entrySequence = 2,
+        ),
+      ),
+      legacyTransactionId = createHoldRequest.holdLegacyTransactionId,
+    )
+
+    return generalLedgerApiClient.postTransaction(
+      transactionReq,
+      idempotencyKey,
+      transactionReq.legacyTransactionId,
+    )
+  }
+
+  fun createHold(createHoldRequest: CreateHoldRequest, idempotencyKey: UUID): HoldResponse {
+    val existingHold = holdRepository.getHoldEntityByLegacyHoldNumber(createHoldRequest.legacyHoldNumber)
+    if (existingHold != null) {
+      return HoldResponse.fromEntity(existingHold)
+    }
+
+    val transactionGLId = saveHoldTransactionToGL(createHoldRequest, idempotencyKey)
+
     val newHold = HoldEntity(
       id = UUID.randomUUID(),
       prisonNumber = createHoldRequest.prisonNumber,
@@ -36,16 +80,21 @@ class HoldsService(val holdRepository: HoldRepository) {
       holdType = createHoldRequest.holdType,
       amount = createHoldRequest.amount,
       holdLocation = createHoldRequest.holdLocation,
+      holdTransactionId = transactionGLId,
     )
+
     try {
-      val savedHold = holdRepository.save(newHold)
-      return HoldResponse.fromEntity(savedHold)
+      return HoldResponse.fromEntity(
+        holdRepository.save(newHold),
+      )
     } catch (e: Exception) {
       val isDuplicateHold = e.message?.contains("uc_holds_legacy_hold_number") == true
       if (e is DataIntegrityViolationException && isDuplicateHold) {
-        val previouslyCreatedHold = holdRepository.getHoldEntityByLegacyHoldNumber(createHoldRequest.legacyHoldNumber)
-        return HoldResponse.fromEntity(previouslyCreatedHold!!)
+        val holdEntity = holdRepository.getHoldEntityByLegacyHoldNumber(createHoldRequest.legacyHoldNumber)
+          ?: throw Exception("Unexpected hold not found after duplicate data integrity violation")
+        return HoldResponse.fromEntity(holdEntity)
       }
+
       throw e
     }
   }
