@@ -85,3 +85,9 @@ springdoc:
     enabled: false
   swagger-ui:
     enabled: false
+
+general-ledger-api:
+  url: ${GENERAL_LEDGER_API_URL}
+  client:
+    id: ${HOLDS_API_CLIENT_ID}
+    secret: ${HOLDS_API_CLIENT_SECRET}
