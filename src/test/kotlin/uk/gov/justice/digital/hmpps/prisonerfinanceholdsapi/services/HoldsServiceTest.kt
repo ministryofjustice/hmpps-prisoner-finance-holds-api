@@ -23,6 +23,7 @@ import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.HoldTyp
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.SubAccountRef
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.generalledger.CreatePostingRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.generalledger.CreateTransactionRequest
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldMigrationRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldRequest
 import java.time.Instant
 import java.util.UUID
@@ -67,13 +68,12 @@ class HoldsServiceTest {
   @Nested
   inner class CreateHold {
     val idempotencyKey = UUID.randomUUID()
+    val transactionGLId = UUID.randomUUID()
+    val prisonerCashAccountUUID = UUID.randomUUID()
+    val prisonHoldAccountUUID = UUID.randomUUID()
 
     @Test
     fun `should call GL service to create the transaction and create hold`() {
-      val transactionGLId = UUID.randomUUID()
-      val prisonerCashAccountUUID = UUID.randomUUID()
-      val prisonHoldAccountUUID = UUID.randomUUID()
-
       val createHoldRequest = CreateHoldRequest(
         prisonNumber = prisonNumber,
         legacyHoldNumber = 1234,
@@ -143,10 +143,6 @@ class HoldsServiceTest {
 
     @Test
     fun `should not call general ledger when the hold already exists`() {
-      val transactionGLId = UUID.randomUUID()
-      val prisonerCashAccountUUID = UUID.randomUUID()
-      val prisonHoldAccountUUID = UUID.randomUUID()
-
       val createHoldRequest = CreateHoldRequest(
         prisonNumber = prisonNumber,
         legacyHoldNumber = 1234,
@@ -187,9 +183,6 @@ class HoldsServiceTest {
     @Test
     fun `should handle unique constrain violation and return the existing hold when the hold already exists`() {
       // Unique constraint violation is expected during race conditions
-      val transactionGLId = UUID.randomUUID()
-      val prisonerCashAccountUUID = UUID.randomUUID()
-      val prisonHoldAccountUUID = UUID.randomUUID()
 
       val createHoldRequest = CreateHoldRequest(
         prisonNumber = prisonNumber,
@@ -244,6 +237,43 @@ class HoldsServiceTest {
       verify(holdRepository, times(1)).save(any())
 
       assertThat(response.id).isEqualTo(holdEntity.id)
+    }
+  }
+
+  @Nested
+  inner class MigrateHold {
+
+    @Test
+    fun `should create a hold`() {
+      val migrationRequest = CreateHoldMigrationRequest(
+        prisonNumber = prisonNumber,
+        legacyHoldNumber = 1234,
+        subAccountRef = SubAccountRef.CASH,
+        createdAt = Instant.now(),
+        createdBy = "TEST",
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(1),
+        isReleased = false,
+        description = "",
+        holdType = HoldType.HOA,
+        amount = 100,
+        holdLocation = "LEI",
+      )
+
+      val holdEntity = createHoldEntity(
+        prisonNumber = migrationRequest.prisonNumber,
+        holdNumber = migrationRequest.legacyHoldNumber,
+        subAccountRef = migrationRequest.subAccountRef,
+        isReleased = migrationRequest.isReleased,
+        amount = migrationRequest.amount,
+        createdAt = migrationRequest.createdAt,
+      )
+
+      whenever { holdRepository.save(any<HoldEntity>()) }.thenReturn(holdEntity)
+
+      holdsService.migrateHold(migrationRequest)
+
+      verify(holdRepository, times(1)).save(any())
     }
   }
 

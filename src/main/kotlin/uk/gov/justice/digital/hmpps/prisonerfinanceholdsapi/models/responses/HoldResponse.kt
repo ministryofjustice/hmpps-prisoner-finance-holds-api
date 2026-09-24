@@ -32,6 +32,7 @@ data class HoldResponse(
   val amount: Long,
 
   val holdLocation: String,
+
 ) {
   companion object {
 

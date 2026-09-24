@@ -19,6 +19,7 @@ import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.integration.wiremock
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.entities.HoldEntity
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.HoldType
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.SubAccountRef
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldMigrationRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.ReleaseHoldRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldBalanceResponse
@@ -1070,6 +1071,53 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         .exchange()
         .expectStatus()
         .isForbidden
+    }
+  }
+
+  @Nested
+  inner class PostMigrateHolds {
+    @Test
+    fun `should respond with 201 and store a hold with no transaction mappings`() {
+      val request = CreateHoldMigrationRequest(
+        prisonNumber = "ABC1234",
+        legacyHoldNumber = 12345,
+        subAccountRef = SubAccountRef.CASH,
+        createdAt = Instant.now(),
+        createdBy = "",
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(1),
+        isReleased = false,
+        description = "",
+        holdType = HoldType.HOA,
+        amount = 100L,
+        holdLocation = "LEI",
+        holdTransactionId = null,
+        releasedTransactionId = null,
+      )
+
+      val response = webTestClient.post().uri("/migrate/holds")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .header("Content-Type", "application/json")
+        .bodyValue(request)
+        .exchange()
+        .expectStatus()
+        .isCreated
+        .expectBody<HoldResponse>()
+        .returnResult()
+        .responseBody!!
+
+      assertThat(response.prisonNumber).isEqualTo(request.prisonNumber)
+      assertThat(response.legacyHoldNumber).isEqualTo(request.legacyHoldNumber)
+      assertThat(response.subAccountRef).isEqualTo(request.subAccountRef)
+      assertThat(response.createdAt).isEqualTo(request.createdAt)
+      assertThat(response.createdBy).isEqualTo(request.createdBy)
+      assertThat(response.holdFromDate).isEqualTo(request.holdFromDate)
+      assertThat(response.holdUntilDate).isEqualTo(request.holdUntilDate)
+      assertThat(response.isReleased).isEqualTo(request.isReleased)
+      assertThat(response.description).isEqualTo(request.description)
+      assertThat(response.holdType).isEqualTo(request.holdType)
+      assertThat(response.amount).isEqualTo(request.amount)
+      assertThat(response.holdLocation).isEqualTo(request.holdLocation)
     }
   }
 }
