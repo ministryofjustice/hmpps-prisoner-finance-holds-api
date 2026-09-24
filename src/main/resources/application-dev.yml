@@ -18,6 +18,8 @@ springdoc:
 
 general-ledger-api:
   url: ${GENERAL_LEDGER_API_URL:http://localhost:8084}
+
+holds-api:
   client:
     id: ${HOLDS_API_CLIENT_ID:hmpps-prisoner-finance-general-ledger-api}
     secret: ${HOLDS_API_CLIENT_SECRET:clientsecret}
