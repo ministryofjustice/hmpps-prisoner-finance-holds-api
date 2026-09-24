@@ -37,10 +37,10 @@ spring:
           hmpps-auth:
             token-uri: ${hmpps-auth.url}/oauth/token
         registration:
-          general-ledger-api:
+          holds-api:
             provider: hmpps-auth
-            client-id: ${general-ledger-api.client.id}
-            client-secret: ${general-ledger-api.client.secret}
+            client-id: ${holds-api.client.id}
+            client-secret: ${holds-api.client.secret}
             authorization-grant-type: client_credentials
             scope: read
   http:
@@ -85,3 +85,11 @@ springdoc:
     enabled: false
   swagger-ui:
     enabled: false
+
+general-ledger-api:
+  url: ${GENERAL_LEDGER_API_URL}
+
+holds-api:
+  client:
+    id: ${HOLDS_API_CLIENT_ID}
+    secret: ${HOLDS_API_CLIENT_SECRET}
