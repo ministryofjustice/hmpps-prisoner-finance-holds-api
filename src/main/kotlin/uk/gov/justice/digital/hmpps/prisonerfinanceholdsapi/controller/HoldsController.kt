@@ -106,8 +106,8 @@ class HoldsController(val holdsService: HoldsService) {
       throw CustomException("Cannot create a hold with isReleased set to true.", status = HttpStatus.BAD_REQUEST)
     }
 
-    val createdHoldResponse = holdsService.createHold(createHoldRequest, idempotencyKey)
-    return ResponseEntity.status(201).body(createdHoldResponse)
+    val createdHold = holdsService.createHold(createHoldRequest, idempotencyKey)
+    return ResponseEntity.status(201).body(HoldResponse.fromEntity(createdHold))
   }
 
   @Operation(

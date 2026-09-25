@@ -12,6 +12,7 @@ import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.entities.Hold
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.SubAccountRef
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.generalledger.CreatePostingRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.generalledger.CreateTransactionRequest
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldMigrationRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldBalanceResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldResponse
@@ -58,10 +59,46 @@ class HoldsService(
     )
   }
 
-  fun createHold(createHoldRequest: CreateHoldRequest, idempotencyKey: UUID): HoldResponse {
+  fun migrateHold(holdMigrationRequest: CreateHoldMigrationRequest): HoldEntity {
+    val migratedHold = HoldEntity(
+      id = UUID.randomUUID(),
+      prisonNumber = holdMigrationRequest.prisonNumber,
+      legacyHoldNumber = holdMigrationRequest.legacyHoldNumber,
+      subAccountRef = holdMigrationRequest.subAccountRef,
+      createdAt = holdMigrationRequest.createdAt,
+      createdBy = holdMigrationRequest.createdBy,
+      holdFromDate = holdMigrationRequest.holdFromDate,
+      holdUntilDate = holdMigrationRequest.holdUntilDate,
+      isReleased = holdMigrationRequest.isReleased,
+      description = holdMigrationRequest.description,
+      holdType = holdMigrationRequest.holdType,
+      amount = holdMigrationRequest.amount,
+      holdLocation = holdMigrationRequest.holdLocation,
+      holdTransactionId = holdMigrationRequest.holdTransactionId,
+      releasedTransactionId = holdMigrationRequest.releasedTransactionId,
+    )
+
+    return saveOrGetExistingHoldEntity(migratedHold, migratedHold.legacyHoldNumber)
+  }
+
+  private fun saveOrGetExistingHoldEntity(holdEntity: HoldEntity, legacyHoldNumber: Long): HoldEntity {
+    try {
+      return holdRepository.save(holdEntity)
+    } catch (e: Exception) {
+      val isDuplicateHold = e.message?.contains("uc_holds_legacy_hold_number") == true
+      if (e is DataIntegrityViolationException && isDuplicateHold) {
+        val holdEntity = holdRepository.getHoldEntityByLegacyHoldNumber(legacyHoldNumber)
+          ?: throw Exception("Unexpected hold not found after duplicate data integrity violation")
+        return holdEntity
+      }
+      throw e
+    }
+  }
+
+  fun createHold(createHoldRequest: CreateHoldRequest, idempotencyKey: UUID): HoldEntity {
     val existingHold = holdRepository.getHoldEntityByLegacyHoldNumber(createHoldRequest.legacyHoldNumber)
     if (existingHold != null) {
-      return HoldResponse.fromEntity(existingHold)
+      return existingHold
     }
 
     val transactionGLId = saveHoldTransactionToGL(createHoldRequest, idempotencyKey)
@@ -83,20 +120,7 @@ class HoldsService(
       holdTransactionId = transactionGLId,
     )
 
-    try {
-      return HoldResponse.fromEntity(
-        holdRepository.save(newHold),
-      )
-    } catch (e: Exception) {
-      val isDuplicateHold = e.message?.contains("uc_holds_legacy_hold_number") == true
-      if (e is DataIntegrityViolationException && isDuplicateHold) {
-        val holdEntity = holdRepository.getHoldEntityByLegacyHoldNumber(createHoldRequest.legacyHoldNumber)
-          ?: throw Exception("Unexpected hold not found after duplicate data integrity violation")
-        return HoldResponse.fromEntity(holdEntity)
-      }
-
-      throw e
-    }
+    return saveOrGetExistingHoldEntity(newHold, createHoldRequest.legacyHoldNumber)
   }
 
   fun getHoldBalanceForAccount(prisonNumber: String): HoldBalanceResponse {

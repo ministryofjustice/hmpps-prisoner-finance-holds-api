@@ -15,6 +15,7 @@ import org.springframework.context.annotation.Configuration
 const val ROLE_PRISONER_FINANCE__HOLDS__RO = "ROLE_PRISONER_FINANCE__HOLDS__RO"
 const val ROLE_PRISONER_FINANCE__HOLDS__RW = "ROLE_PRISONER_FINANCE__HOLDS__RW"
 const val TAG_HOLDS = "Holds Controller"
+const val TAG_MIGRATION = "Holds Migration Controller"
 
 @Configuration
 class OpenApiConfiguration(buildProperties: BuildProperties) {
