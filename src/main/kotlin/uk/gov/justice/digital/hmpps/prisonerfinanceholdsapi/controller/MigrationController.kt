@@ -61,7 +61,7 @@ class MigrationController(val holdsService: HoldsService) {
   @SecurityRequirement(name = "bearer-jwt", scopes = [ROLE_PRISONER_FINANCE__HOLDS__RW])
   @PreAuthorize("hasAnyAuthority('$ROLE_PRISONER_FINANCE__HOLDS__RW')")
   @PostMapping("/migrate/holds")
-  fun postHold(
+  fun migrateHold(
     @Valid @RequestBody createHoldMigrationRequest: CreateHoldMigrationRequest,
   ): ResponseEntity<HoldResponse> {
     val migratedHold = holdsService.migrateHold(createHoldMigrationRequest)
