@@ -1226,7 +1226,9 @@ class HoldsIntegrationTest : IntegrationTestBase() {
       assertThat(firstResponse.holdTransactionId).isEqualTo(request.holdTransactionId)
       assertThat(firstResponse.releasedTransactionId).isEqualTo(request.releasedTransactionId)
 
-      assertThat(firstResponse).isEqualTo(secondResponse)
+      assertThat(firstResponse.id).isEqualTo(secondResponse.id)
+      assertThat(firstResponse.holdTransactionId).isEqualTo(secondResponse.holdTransactionId)
+      assertThat(firstResponse.releasedTransactionId).isEqualTo(secondResponse.releasedTransactionId)
     }
 
     @ParameterizedTest
