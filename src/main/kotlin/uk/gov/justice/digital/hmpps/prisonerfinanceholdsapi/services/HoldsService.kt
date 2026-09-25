@@ -78,13 +78,27 @@ class HoldsService(
       releasedTransactionId = holdMigrationRequest.releasedTransactionId,
     )
 
-    return holdRepository.save(migratedHold)
+    return saveOrGetExistingHoldEntity(migratedHold, migratedHold.legacyHoldNumber)
   }
 
-  fun createHold(createHoldRequest: CreateHoldRequest, idempotencyKey: UUID): HoldResponse {
+  private fun saveOrGetExistingHoldEntity(holdEntity: HoldEntity, legacyHoldNumber: Long): HoldEntity {
+    try {
+        return holdRepository.save(holdEntity)
+    } catch (e: Exception) {
+      val isDuplicateHold = e.message?.contains("uc_holds_legacy_hold_number") == true
+      if (e is DataIntegrityViolationException && isDuplicateHold) {
+        val holdEntity = holdRepository.getHoldEntityByLegacyHoldNumber(legacyHoldNumber)
+          ?: throw Exception("Unexpected hold not found after duplicate data integrity violation")
+        return holdEntity
+      }
+      throw e
+    }
+  }
+
+  fun createHold(createHoldRequest: CreateHoldRequest, idempotencyKey: UUID): HoldEntity {
     val existingHold = holdRepository.getHoldEntityByLegacyHoldNumber(createHoldRequest.legacyHoldNumber)
     if (existingHold != null) {
-      return HoldResponse.fromEntity(existingHold)
+      return existingHold
     }
 
     val transactionGLId = saveHoldTransactionToGL(createHoldRequest, idempotencyKey)
@@ -106,20 +120,7 @@ class HoldsService(
       holdTransactionId = transactionGLId,
     )
 
-    try {
-      return HoldResponse.fromEntity(
-        holdRepository.save(newHold),
-      )
-    } catch (e: Exception) {
-      val isDuplicateHold = e.message?.contains("uc_holds_legacy_hold_number") == true
-      if (e is DataIntegrityViolationException && isDuplicateHold) {
-        val holdEntity = holdRepository.getHoldEntityByLegacyHoldNumber(createHoldRequest.legacyHoldNumber)
-          ?: throw Exception("Unexpected hold not found after duplicate data integrity violation")
-        return HoldResponse.fromEntity(holdEntity)
-      }
-
-      throw e
-    }
+    return saveOrGetExistingHoldEntity(newHold, createHoldRequest.legacyHoldNumber)
   }
 
   fun getHoldBalanceForAccount(prisonNumber: String): HoldBalanceResponse {

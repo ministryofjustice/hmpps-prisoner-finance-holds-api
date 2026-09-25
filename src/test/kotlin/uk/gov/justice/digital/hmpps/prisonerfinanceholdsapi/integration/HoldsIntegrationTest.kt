@@ -6,6 +6,8 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Import
 import org.springframework.http.HttpStatus
@@ -1118,6 +1120,191 @@ class HoldsIntegrationTest : IntegrationTestBase() {
       assertThat(response.holdType).isEqualTo(request.holdType)
       assertThat(response.amount).isEqualTo(request.amount)
       assertThat(response.holdLocation).isEqualTo(request.holdLocation)
+      assertThat(response.holdTransactionId).isNull()
+      assertThat(response.releasedTransactionId).isNull()
+    }
+
+    @Test
+    fun `should respond with 201 and store a hold with transaction mappings`() {
+      val request = CreateHoldMigrationRequest(
+        prisonNumber = "ABC1234",
+        legacyHoldNumber = 12345,
+        subAccountRef = SubAccountRef.CASH,
+        createdAt = Instant.now(),
+        createdBy = "",
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(1),
+        isReleased = true,
+        description = "",
+        holdType = HoldType.HOA,
+        amount = 100L,
+        holdLocation = "LEI",
+        holdTransactionId = UUID.randomUUID(),
+        releasedTransactionId = UUID.randomUUID(),
+      )
+
+      val response = webTestClient.post().uri("/migrate/holds")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .header("Content-Type", "application/json")
+        .bodyValue(request)
+        .exchange()
+        .expectStatus()
+        .isCreated
+        .expectBody<HoldResponse>()
+        .returnResult()
+        .responseBody!!
+
+      assertThat(response.prisonNumber).isEqualTo(request.prisonNumber)
+      assertThat(response.legacyHoldNumber).isEqualTo(request.legacyHoldNumber)
+      assertThat(response.subAccountRef).isEqualTo(request.subAccountRef)
+      assertThat(response.createdAt).isEqualTo(request.createdAt)
+      assertThat(response.createdBy).isEqualTo(request.createdBy)
+      assertThat(response.holdFromDate).isEqualTo(request.holdFromDate)
+      assertThat(response.holdUntilDate).isEqualTo(request.holdUntilDate)
+      assertThat(response.isReleased).isEqualTo(request.isReleased)
+      assertThat(response.description).isEqualTo(request.description)
+      assertThat(response.holdType).isEqualTo(request.holdType)
+      assertThat(response.amount).isEqualTo(request.amount)
+      assertThat(response.holdLocation).isEqualTo(request.holdLocation)
+      assertThat(response.holdTransactionId).isEqualTo(request.holdTransactionId)
+      assertThat(response.releasedTransactionId).isEqualTo(request.releasedTransactionId)
+    }
+
+    @Test
+    fun `should respond with 201 and respond with the same ID if called multiple times `() {
+      val request = CreateHoldMigrationRequest(
+        prisonNumber = "ABC1234",
+        legacyHoldNumber = 12345,
+        subAccountRef = SubAccountRef.CASH,
+        createdAt = Instant.now(),
+        createdBy = "",
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(1),
+        isReleased = false,
+        description = "",
+        holdType = HoldType.HOA,
+        amount = 100L,
+        holdLocation = "LEI",
+        holdTransactionId = UUID.randomUUID(),
+        releasedTransactionId = UUID.randomUUID(),
+      )
+
+      val firstResponse = webTestClient.post().uri("/migrate/holds")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .header("Content-Type", "application/json")
+        .bodyValue(request)
+        .exchange()
+        .expectStatus()
+        .isCreated
+        .expectBody<HoldResponse>()
+        .returnResult()
+        .responseBody!!
+
+      val secondResponse = webTestClient.post().uri("/migrate/holds")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .header("Content-Type", "application/json")
+        .bodyValue(request)
+        .exchange()
+        .expectStatus()
+        .isCreated
+        .expectBody<HoldResponse>()
+        .returnResult()
+        .responseBody!!
+
+      assertThat(firstResponse.prisonNumber).isEqualTo(request.prisonNumber)
+      assertThat(firstResponse.legacyHoldNumber).isEqualTo(request.legacyHoldNumber)
+      assertThat(firstResponse.subAccountRef).isEqualTo(request.subAccountRef)
+      assertThat(firstResponse.createdAt).isEqualTo(request.createdAt)
+      assertThat(firstResponse.createdBy).isEqualTo(request.createdBy)
+      assertThat(firstResponse.holdFromDate).isEqualTo(request.holdFromDate)
+      assertThat(firstResponse.holdUntilDate).isEqualTo(request.holdUntilDate)
+      assertThat(firstResponse.isReleased).isEqualTo(request.isReleased)
+      assertThat(firstResponse.description).isEqualTo(request.description)
+      assertThat(firstResponse.holdType).isEqualTo(request.holdType)
+      assertThat(firstResponse.amount).isEqualTo(request.amount)
+      assertThat(firstResponse.holdLocation).isEqualTo(request.holdLocation)
+      assertThat(firstResponse.holdTransactionId).isEqualTo(request.holdTransactionId)
+      assertThat(firstResponse.releasedTransactionId).isEqualTo(request.releasedTransactionId)
+
+      assertThat(firstResponse).isEqualTo(secondResponse)
+    }
+
+    @ParameterizedTest
+    @CsvSource("false", "true")
+    fun `should respond with 201 and store a hold regardless of the release status`(
+      isReleased: Boolean,
+    ){
+      val request = CreateHoldMigrationRequest(
+        prisonNumber = "ABC1234",
+        legacyHoldNumber = 1,
+        subAccountRef = SubAccountRef.CASH,
+        createdAt = Instant.now(),
+        createdBy = "",
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(1),
+        isReleased = isReleased,
+        description = "",
+        holdType = HoldType.HOA,
+        amount = 100L,
+        holdLocation = "LEI",
+        holdTransactionId = null,
+        releasedTransactionId = null,
+      )
+
+      val response = webTestClient.post().uri("/migrate/holds")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .header("Content-Type", "application/json")
+        .bodyValue(request)
+        .exchange()
+        .expectStatus()
+        .isCreated
+        .expectBody<HoldResponse>()
+        .returnResult()
+        .responseBody!!
+
+      assertThat(response.isReleased).isEqualTo(isReleased)
+    }
+
+    @Test
+    fun `should return 403 forbidden when user does not have the correct role`() {
+      val createMigrationHoldRequest = CreateHoldMigrationRequest(
+        prisonNumber = "ABC1234",
+      legacyHoldNumber = 1,
+      subAccountRef = SubAccountRef.CASH,
+      createdAt = Instant.now(),
+      createdBy = "",
+      holdFromDate = Instant.now(),
+      holdUntilDate = Instant.now().plusSeconds(1),
+      isReleased = false,
+      description = "",
+      holdType = HoldType.HOA,
+      amount = 100L,
+      holdLocation = "LEI",
+      holdTransactionId = null,
+      releasedTransactionId = null,
+      )
+
+      webTestClient.post().uri("/migrate/holds")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RO)))
+        .bodyValue(createMigrationHoldRequest)
+        .exchange()
+        .expectStatus()
+        .isForbidden
+    }
+
+    @Test
+    fun `should return 400 bad request when request is invalid`() {
+      val requestJson = """ {
+        "prisonNumber": 12345,
+      }"""
+
+      webTestClient.post().uri("/migrate/holds")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .header("Content-Type", "application/json")
+        .bodyValue(requestJson)
+        .exchange()
+        .expectStatus()
+        .isBadRequest
     }
   }
 }

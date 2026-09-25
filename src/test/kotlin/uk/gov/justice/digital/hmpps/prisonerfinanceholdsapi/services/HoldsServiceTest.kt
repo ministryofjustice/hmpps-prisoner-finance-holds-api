@@ -48,6 +48,7 @@ class HoldsServiceTest {
     isReleased: Boolean,
     amount: Long,
     holdTransactionId: UUID? = null,
+    releasedTransactionId: UUID? = null,
     createdAt: Instant = Instant.now(),
   ) = HoldEntity(
     prisonNumber = prisonNumber,
@@ -63,6 +64,7 @@ class HoldsServiceTest {
     amount = amount,
     holdLocation = "LEI",
     holdTransactionId = holdTransactionId,
+    releasedTransactionId = releasedTransactionId
   )
 
   @Nested
@@ -244,7 +246,7 @@ class HoldsServiceTest {
   inner class MigrateHold {
 
     @Test
-    fun `should create a hold`() {
+    fun `should create a hold with no transaction mappings`() {
       val migrationRequest = CreateHoldMigrationRequest(
         prisonNumber = prisonNumber,
         legacyHoldNumber = 1234,
@@ -275,6 +277,52 @@ class HoldsServiceTest {
 
       verify(holdRepository, times(1)).save(any())
     }
+
+    @Test
+    fun `should handle unique constrain violation and return the existing hold when the hold already exists`() {
+      // Unique constraint violation is expected during race conditions
+      val createHoldMigrationReq = CreateHoldMigrationRequest(
+        prisonNumber = prisonNumber,
+        legacyHoldNumber = 1234,
+        subAccountRef = SubAccountRef.CASH,
+        createdAt = Instant.now(),
+        createdBy = "TEST",
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(1),
+        isReleased = false,
+        description = "",
+        holdType = HoldType.HOA,
+        amount = 100,
+        holdLocation = "LEI",
+        holdTransactionId = UUID.randomUUID(),
+        releasedTransactionId = UUID.randomUUID(),
+      )
+
+      val holdEntity = createHoldEntity(
+        prisonNumber = createHoldMigrationReq.prisonNumber,
+        holdNumber = createHoldMigrationReq.legacyHoldNumber,
+        subAccountRef = createHoldMigrationReq.subAccountRef,
+        isReleased = createHoldMigrationReq.isReleased,
+        amount = createHoldMigrationReq.amount,
+        createdAt = createHoldMigrationReq.createdAt,
+        holdTransactionId = createHoldMigrationReq.holdTransactionId,
+        releasedTransactionId = createHoldMigrationReq.releasedTransactionId,
+      )
+
+      whenever { holdRepository.save(any<HoldEntity>()) }.thenThrow(
+        DataIntegrityViolationException("DataIntegrityViolationException for constraint uc_holds_legacy_hold_number"),
+      )
+
+      whenever { holdRepository.getHoldEntityByLegacyHoldNumber(createHoldMigrationReq.legacyHoldNumber) }
+        .thenReturn(holdEntity)
+
+      val response = holdsService.migrateHold(createHoldMigrationReq)
+
+      verify(holdRepository, times(1)).save(any())
+
+      assertThat(response.id).isEqualTo(holdEntity.id)
+    }
+
   }
 
   @Nested

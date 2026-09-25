@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus.NOT_FOUND
 import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.security.access.AccessDeniedException
+import org.springframework.web.HttpRequestMethodNotSupportedException
 import org.springframework.web.bind.MissingRequestHeaderException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
@@ -122,17 +123,6 @@ class PrisonerFinanceHoldsApiExceptionHandler {
       ),
     ).also { log.debug("Forbidden (403) returned: {}", e.message) }
 
-  @ExceptionHandler(DataIntegrityViolationException::class)
-  fun handleDataIntegrityViolationException(e: DataIntegrityViolationException): ResponseEntity<ErrorResponse> = ResponseEntity
-    .status(CONFLICT)
-    .body(
-      ErrorResponse(
-        status = CONFLICT,
-        userMessage = "Conflict: ${e.message}",
-        developerMessage = e.message,
-      ),
-    ).also { log.debug("Conflict 409: {}", e.message) }
-
   @ExceptionHandler(Exception::class)
   fun handleException(e: Exception): ResponseEntity<ErrorResponse> = ResponseEntity
     .status(INTERNAL_SERVER_ERROR)
@@ -143,6 +133,18 @@ class PrisonerFinanceHoldsApiExceptionHandler {
         developerMessage = e.message,
       ),
     ).also { log.error("Unexpected exception", e) }
+
+
+  @ExceptionHandler(HttpRequestMethodNotSupportedException::class)
+  fun handleMethodNotAllowedException(e: HttpRequestMethodNotSupportedException): ResponseEntity<ErrorResponse> = ResponseEntity
+    .status(HttpStatus.METHOD_NOT_ALLOWED)
+    .body(
+      ErrorResponse(
+        status = HttpStatus.METHOD_NOT_ALLOWED,
+        userMessage = "Endpoint called with the wrong method error: ${e.message}",
+        developerMessage = e.message,
+      ),
+    ).also { log.error("Endpoint called with the wrong method exception", e) }
 
   private companion object {
     private val log = LoggerFactory.getLogger(this::class.java)
