@@ -64,7 +64,7 @@ class HoldsServiceTest {
     amount = amount,
     holdLocation = "LEI",
     holdTransactionId = holdTransactionId,
-    releasedTransactionId = releasedTransactionId
+    releasedTransactionId = releasedTransactionId,
   )
 
   @Nested
@@ -322,7 +322,6 @@ class HoldsServiceTest {
 
       assertThat(response.id).isEqualTo(holdEntity.id)
     }
-
   }
 
   @Nested

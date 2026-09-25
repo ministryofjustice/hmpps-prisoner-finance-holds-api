@@ -1233,7 +1233,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
     @CsvSource("false", "true")
     fun `should respond with 201 and store a hold regardless of the release status`(
       isReleased: Boolean,
-    ){
+    ) {
       val request = CreateHoldMigrationRequest(
         prisonNumber = "ABC1234",
         legacyHoldNumber = 1,
@@ -1269,19 +1269,19 @@ class HoldsIntegrationTest : IntegrationTestBase() {
     fun `should return 403 forbidden when user does not have the correct role`() {
       val createMigrationHoldRequest = CreateHoldMigrationRequest(
         prisonNumber = "ABC1234",
-      legacyHoldNumber = 1,
-      subAccountRef = SubAccountRef.CASH,
-      createdAt = Instant.now(),
-      createdBy = "",
-      holdFromDate = Instant.now(),
-      holdUntilDate = Instant.now().plusSeconds(1),
-      isReleased = false,
-      description = "",
-      holdType = HoldType.HOA,
-      amount = 100L,
-      holdLocation = "LEI",
-      holdTransactionId = null,
-      releasedTransactionId = null,
+        legacyHoldNumber = 1,
+        subAccountRef = SubAccountRef.CASH,
+        createdAt = Instant.now(),
+        createdBy = "",
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(1),
+        isReleased = false,
+        description = "",
+        holdType = HoldType.HOA,
+        amount = 100L,
+        holdLocation = "LEI",
+        holdTransactionId = null,
+        releasedTransactionId = null,
       )
 
       webTestClient.post().uri("/migrate/holds")

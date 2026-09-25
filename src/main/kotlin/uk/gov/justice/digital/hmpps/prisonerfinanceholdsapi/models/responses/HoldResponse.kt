@@ -35,7 +35,7 @@ data class HoldResponse(
 
   val holdTransactionId: UUID?,
 
-  val releasedTransactionId: UUID?
+  val releasedTransactionId: UUID?,
 ) {
   companion object {
 
@@ -54,7 +54,7 @@ data class HoldResponse(
       amount = holdEntity.amount,
       holdLocation = holdEntity.holdLocation,
       holdTransactionId = holdEntity.holdTransactionId,
-      releasedTransactionId = holdEntity.releasedTransactionId
+      releasedTransactionId = holdEntity.releasedTransactionId,
     )
   }
 }

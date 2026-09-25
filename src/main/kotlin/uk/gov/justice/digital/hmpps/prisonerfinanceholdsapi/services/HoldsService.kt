@@ -83,7 +83,7 @@ class HoldsService(
 
   private fun saveOrGetExistingHoldEntity(holdEntity: HoldEntity, legacyHoldNumber: Long): HoldEntity {
     try {
-        return holdRepository.save(holdEntity)
+      return holdRepository.save(holdEntity)
     } catch (e: Exception) {
       val isDuplicateHold = e.message?.contains("uc_holds_legacy_hold_number") == true
       if (e is DataIntegrityViolationException && isDuplicateHold) {
