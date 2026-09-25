@@ -138,7 +138,7 @@ class PrisonerFinanceHoldsApiExceptionHandler {
     .body(
       ErrorResponse(
         status = HttpStatus.METHOD_NOT_ALLOWED,
-        userMessage ="HTTP method ${e.method} is not supported for this endpoint.",
+        userMessage = "HTTP method ${e.method} is not supported for this endpoint.",
         developerMessage = e.message,
       ),
     ).also { log.error("Endpoint called with the wrong method exception", e) }
