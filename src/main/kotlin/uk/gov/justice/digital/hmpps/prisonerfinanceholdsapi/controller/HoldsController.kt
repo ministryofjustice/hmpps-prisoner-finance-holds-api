@@ -155,7 +155,7 @@ class HoldsController(val holdsService: HoldsService) {
     @PathVariable @Valid id: UUID,
     @RequestBody @Valid releaseHoldRequest: ReleaseHoldRequest,
   ): ResponseEntity<ReleasedHoldResponse> {
-    val releasedHoldResponse = holdsService.releaseHoldById(id, releaseHoldRequest.releaseDateTime)
+    val releasedHoldResponse = holdsService.releaseHoldById(id, releaseHoldRequest, UUID.randomUUID())
     return ResponseEntity.status(HttpStatus.OK).body(releasedHoldResponse)
   }
 
