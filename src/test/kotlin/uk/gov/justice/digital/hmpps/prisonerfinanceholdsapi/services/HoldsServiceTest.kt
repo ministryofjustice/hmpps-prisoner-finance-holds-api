@@ -1,12 +1,14 @@
 package uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.services
 
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.mockito.InjectMocks
 import org.mockito.Mock
 import org.mockito.junit.jupiter.MockitoExtension
+import org.mockito.kotlin.KArgumentCaptor
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
@@ -25,6 +27,8 @@ import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.generalledger
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.generalledger.CreateTransactionRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldMigrationRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldRequest
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.ReleaseHoldRequest
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.ReleasedHoldResponse
 import java.time.Instant
 import java.util.UUID
 
@@ -107,7 +111,6 @@ class HoldsServiceTest {
         generalLedgerApiClient.postTransaction(
           transactionReqCaptor.capture(),
           any(),
-          eq(createHoldRequest.holdLegacyTransactionId),
         )
       }.thenReturn(transactionGLId)
 
@@ -119,7 +122,6 @@ class HoldsServiceTest {
         .postTransaction(
           any(),
           eq(idempotencyKey),
-          eq(createHoldRequest.holdLegacyTransactionId),
         )
       verify(holdRepository, times(1)).save(any())
 
@@ -177,7 +179,7 @@ class HoldsServiceTest {
       holdsService.createHold(createHoldRequest, idempotencyKey)
 
       verify(generalLedgerApiClient, times(0))
-        .postTransaction(any(), any(), any())
+        .postTransaction(any(), any())
       verify(holdRepository, times(0)).save(any())
       verify(holdRepository, times(1)).getHoldEntityByLegacyHoldNumber(createHoldRequest.legacyHoldNumber)
     }
@@ -220,7 +222,6 @@ class HoldsServiceTest {
         generalLedgerApiClient.postTransaction(
           any(),
           any(),
-          eq(createHoldRequest.holdLegacyTransactionId),
         )
       }.thenReturn(transactionGLId, idempotencyKey)
 
@@ -234,7 +235,6 @@ class HoldsServiceTest {
         .postTransaction(
           any(),
           eq(idempotencyKey),
-          eq(createHoldRequest.holdLegacyTransactionId),
         )
       verify(holdRepository, times(1)).save(any())
 
@@ -466,5 +466,118 @@ class HoldsServiceTest {
       assertThat(holdResponse.isReleased).isEqualTo(holdEntity.isReleased)
       assertThat(holdResponse.legacyHoldNumber).isEqualTo(holdEntity.legacyHoldNumber)
     }
+  }
+
+  @Nested
+  inner class ReleaseHolds {
+
+    val releaseDateTime = Instant.now()
+    val prisonSubAccountUUID = UUID.randomUUID()
+    val prisonerSubAccountUUID = UUID.randomUUID()
+    val legacyTransactionId = 12345L
+    val glTransactionUUID = UUID.randomUUID()
+    val holdUUID = UUID.randomUUID()
+    val idempotencyKey = UUID.randomUUID()
+
+    lateinit var releaseHoldRequest: ReleaseHoldRequest
+    lateinit var transactionReqCaptor: KArgumentCaptor<CreateTransactionRequest>
+    lateinit var releasedHoldEntity: HoldEntity
+
+    lateinit var releaseHoldResponse: ReleasedHoldResponse
+    lateinit var transactionReq: CreateTransactionRequest
+
+    @BeforeEach
+    fun setup() {
+      releaseHoldRequest = ReleaseHoldRequest(
+        releaseDateTime = releaseDateTime,
+        prisonSubAccountUUID = prisonSubAccountUUID,
+        prisonerSubAccountUUID = prisonerSubAccountUUID,
+        legacyTransactionId = legacyTransactionId,
+      )
+
+      // TODO we only ever get the captor firstvalue so thiscould be brought into scope
+      transactionReqCaptor = argumentCaptor<CreateTransactionRequest>()
+      whenever {
+        generalLedgerApiClient.postTransaction(
+          transactionReqCaptor.capture(),
+          any(),
+        )
+      }.thenReturn(glTransactionUUID)
+
+      val unreleasedHoldEntity = HoldEntity(
+        id = holdUUID,
+        prisonNumber = prisonNumber,
+        legacyHoldNumber = 1,
+        subAccountRef = SubAccountRef.CASH,
+        createdAt = Instant.now(),
+        createdBy = "",
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(1),
+        isReleased = false,
+        description = "",
+        holdType = HoldType.HOA,
+        amount = 1,
+        holdLocation = "LEI",
+        releasedAt = null,
+        holdTransactionId = UUID.randomUUID(),
+        releasedTransactionId = null,
+      )
+
+      releasedHoldEntity = unreleasedHoldEntity.copy(
+        isReleased = true,
+        releasedTransactionId = glTransactionUUID,
+        releasedAt = releaseHoldRequest.releaseDateTime,
+      )
+
+      whenever { holdRepository.findHoldEntityById(holdUUID) }.thenReturn(unreleasedHoldEntity)
+
+      whenever { holdRepository.save(any<HoldEntity>()) }.thenReturn(releasedHoldEntity)
+
+      releaseHoldResponse = holdsService.releaseHoldById(holdUUID, releaseHoldRequest, idempotencyKey)
+
+      // transactionReq = transactionReqCaptor.firstValue
+    }
+
+    @Test
+    fun `should call GL to create transaction and save to the repository`() {
+      verify(generalLedgerApiClient, times(1))
+        .postTransaction(
+          any(),
+          eq(idempotencyKey),
+        )
+      verify(holdRepository, times(1)).save(any())
+    }
+
+    @Test
+    fun `release hold response is constructed as expected`() {
+      assertThat(releaseHoldResponse.releasedAt).isEqualTo(releasedHoldEntity.releasedAt)
+      assertThat(releaseHoldResponse.id).isEqualTo(releasedHoldEntity.id)
+      assertThat(releaseHoldResponse.amountReleased).isEqualTo(releasedHoldEntity.amount)
+      assertThat(releaseHoldResponse.releasedTransactionId).isEqualTo(glTransactionUUID)
+    }
+
+//    @Test
+//    fun `transaction request is constructed as expected` () {
+//      assertThat(transactionReq.amount).isEqualTo(releaseHoldResponse.amountReleased)
+//      // TODO
+//      //assertThat(transactionReq.description).isEqualTo(releaseHoldResponse.)
+//      assertThat(transactionReq.reference).isEqualTo("")
+//      assertThat(transactionReq.entrySequence).isEqualTo(1)
+//      assertThat(transactionReq.timestamp).isEqualTo(releaseDateTime)
+//      assertThat(transactionReq.legacyTransactionId).isEqualTo(releaseHoldRequest.legacyTransactionId)
+//    }
+//
+//    @Test
+//    fun `transaction requests postings are constructed as expected`() {
+//      val creditPosting = transactionReq.postings.first { it.type == CreatePostingRequest.Type.CR }
+//      assertThat(creditPosting.subAccountId).isEqualTo(prisonSubAccountUUID)
+//      assertThat(creditPosting.entrySequence).isEqualTo(1)
+//      assertThat(creditPosting.amount).isEqualTo(holdEntity.amount)
+//
+//      val debitPosting = transactionReq.postings.first { it.type == CreatePostingRequest.Type.DR }
+//      assertThat(debitPosting.subAccountId).isEqualTo(prisonSubAccountUUID)
+//      assertThat(debitPosting.entrySequence).isEqualTo(2)
+//      assertThat(debitPosting.amount).isEqualTo(holdEntity.amount)
+//    }
   }
 }

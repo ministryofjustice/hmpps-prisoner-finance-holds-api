@@ -14,6 +14,7 @@ import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.generalledger
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.generalledger.CreateTransactionRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldMigrationRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldRequest
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.ReleaseHoldRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldBalanceResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.PagedResponse
@@ -55,7 +56,6 @@ class HoldsService(
     return generalLedgerApiClient.postTransaction(
       transactionReq,
       idempotencyKey,
-      transactionReq.legacyTransactionId,
     )
   }
 
@@ -138,15 +138,32 @@ class HoldsService(
     return HoldBalanceResponse(Instant.now(), amount)
   }
 
-  fun releaseHoldById(holdId: UUID, releaseTime: Instant): ReleasedHoldResponse {
+  fun releaseHoldById(holdId: UUID, releaseHoldRequest: ReleaseHoldRequest, idempotencyKey: UUID): ReleasedHoldResponse {
     val holdToRelease = holdRepository.findHoldEntityById(holdId)
       ?: throw CustomException(status = HttpStatus.NOT_FOUND, message = "Hold not found")
 
     if (!holdToRelease.isReleased) {
       holdToRelease.isReleased = true
-      holdToRelease.releasedAt = releaseTime
+      holdToRelease.releasedAt = releaseHoldRequest.releaseDateTime
       holdRepository.save(holdToRelease)
     }
+
+    // here we need to call general ledger to create a transaction to move the hold money from the prison sa to prisoner sa
+    // so need those UUIDs passed in.
+    val releaseTransactionUUID = generalLedgerApiClient.postTransaction(
+      request = CreateTransactionRequest(
+        reference = "",
+        description = "",
+        timestamp = releaseHoldRequest.releaseDateTime,
+        amount = 0,
+        entrySequence = 0,
+        postings = emptyList(),
+        legacyTransactionId = releaseHoldRequest.legacyTransactionId,
+      ),
+      idempotencyKey = idempotencyKey,
+    )
+
+    // update hold record with the transaction that released hold
 
     return ReleasedHoldResponse(
       id = holdId,
@@ -154,6 +171,7 @@ class HoldsService(
       subAccountRef = holdToRelease.subAccountRef,
       amountReleased = holdToRelease.amount,
       releasedAt = holdToRelease.releasedAt!!,
+      releasedTransactionId = releaseTransactionUUID,
     )
   }
 
