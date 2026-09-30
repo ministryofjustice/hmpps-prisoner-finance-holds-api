@@ -145,34 +145,35 @@ class HoldsService(
     if (!holdToRelease.isReleased) {
       holdToRelease.isReleased = true
       holdToRelease.releasedAt = releaseHoldRequest.releaseDateTime
+
+      val releaseTransactionId = generalLedgerApiClient.postTransaction(
+        request = CreateTransactionRequest(
+          reference = "",
+          description = "Remove Hold",
+          timestamp = releaseHoldRequest.releaseDateTime,
+          amount = holdToRelease.amount,
+          entrySequence = 1,
+          postings = listOf(
+            CreatePostingRequest(
+              type = CreatePostingRequest.Type.DR,
+              subAccountId = releaseHoldRequest.prisonSubAccountId,
+              amount = holdToRelease.amount,
+              entrySequence = 1,
+            ),
+            CreatePostingRequest(
+              type = CreatePostingRequest.Type.CR,
+              subAccountId = releaseHoldRequest.prisonerSubAccountId,
+              amount = holdToRelease.amount,
+              entrySequence = 2,
+            ),
+          ),
+          legacyTransactionId = releaseHoldRequest.legacyTransactionId,
+        ),
+        idempotencyKey = idempotencyKey,
+      )
+      holdToRelease.releasedTransactionId = releaseTransactionId
       holdRepository.save(holdToRelease)
     }
-
-    val releaseTransactionUUID = generalLedgerApiClient.postTransaction(
-      request = CreateTransactionRequest(
-        reference = "",
-        description = "Remove Hold",
-        timestamp = releaseHoldRequest.releaseDateTime,
-        amount = holdToRelease.amount,
-        entrySequence = 1,
-        postings = listOf(
-          CreatePostingRequest(
-            type = CreatePostingRequest.Type.DR,
-            subAccountId = releaseHoldRequest.prisonSubAccountId,
-            amount = holdToRelease.amount,
-            entrySequence = 1,
-          ),
-          CreatePostingRequest(
-            type = CreatePostingRequest.Type.CR,
-            subAccountId = releaseHoldRequest.prisonerSubAccountId,
-            amount = holdToRelease.amount,
-            entrySequence = 2,
-          ),
-        ),
-        legacyTransactionId = releaseHoldRequest.legacyTransactionId,
-      ),
-      idempotencyKey = idempotencyKey,
-    )
 
     return ReleasedHoldResponse(
       id = holdId,
@@ -180,7 +181,7 @@ class HoldsService(
       subAccountRef = holdToRelease.subAccountRef,
       amountReleased = holdToRelease.amount,
       releasedAt = holdToRelease.releasedAt!!,
-      releasedTransactionId = releaseTransactionUUID,
+      releasedTransactionId = holdToRelease.releasedTransactionId!!,
     )
   }
 
