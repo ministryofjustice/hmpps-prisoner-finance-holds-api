@@ -6,6 +6,6 @@ import java.util.UUID
 data class ReleaseHoldRequest(
   val releaseDateTime: Instant,
   val legacyTransactionId: Long,
-  val prisonSubAccountUUID: UUID,
-  val prisonerSubAccountUUID: UUID,
+  val prisonSubAccountId: UUID,
+  val prisonerSubAccountId: UUID,
 )

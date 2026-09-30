@@ -648,8 +648,8 @@ class HoldsIntegrationTest : IntegrationTestBase() {
 
       val releaseRequest = ReleaseHoldRequest(
         releaseDateTime = releaseTime,
-        prisonSubAccountUUID = prisonSubAccountUUID,
-        prisonerSubAccountUUID = prisonerSubAccountUUID,
+        prisonSubAccountId = prisonSubAccountUUID,
+        prisonerSubAccountId = prisonerSubAccountUUID,
         legacyTransactionId = legacyTransactionId,
       )
 
