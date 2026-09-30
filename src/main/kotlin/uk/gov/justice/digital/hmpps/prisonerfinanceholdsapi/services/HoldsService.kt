@@ -148,22 +148,31 @@ class HoldsService(
       holdRepository.save(holdToRelease)
     }
 
-    // here we need to call general ledger to create a transaction to move the hold money from the prison sa to prisoner sa
-    // so need those UUIDs passed in.
     val releaseTransactionUUID = generalLedgerApiClient.postTransaction(
       request = CreateTransactionRequest(
         reference = "",
-        description = "",
+        description = "Remove Hold",
         timestamp = releaseHoldRequest.releaseDateTime,
-        amount = 0,
-        entrySequence = 0,
-        postings = emptyList(),
+        amount = holdToRelease.amount,
+        entrySequence = 1,
+        postings = listOf(
+          CreatePostingRequest(
+            type = CreatePostingRequest.Type.DR,
+            subAccountId = releaseHoldRequest.prisonSubAccountId,
+            amount = holdToRelease.amount,
+            entrySequence = 1,
+          ),
+          CreatePostingRequest(
+            type = CreatePostingRequest.Type.CR,
+            subAccountId = releaseHoldRequest.prisonerSubAccountId,
+            amount = holdToRelease.amount,
+            entrySequence = 2,
+          ),
+        ),
         legacyTransactionId = releaseHoldRequest.legacyTransactionId,
       ),
       idempotencyKey = idempotencyKey,
     )
-
-    // update hold record with the transaction that released hold
 
     return ReleasedHoldResponse(
       id = holdId,

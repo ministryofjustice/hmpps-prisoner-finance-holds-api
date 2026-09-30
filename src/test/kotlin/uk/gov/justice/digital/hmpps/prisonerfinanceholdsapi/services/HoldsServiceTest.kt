@@ -8,7 +8,6 @@ import org.junit.jupiter.api.extension.ExtendWith
 import org.mockito.InjectMocks
 import org.mockito.Mock
 import org.mockito.junit.jupiter.MockitoExtension
-import org.mockito.kotlin.KArgumentCaptor
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
@@ -480,7 +479,6 @@ class HoldsServiceTest {
     val idempotencyKey = UUID.randomUUID()
 
     lateinit var releaseHoldRequest: ReleaseHoldRequest
-    lateinit var transactionReqCaptor: KArgumentCaptor<CreateTransactionRequest>
     lateinit var releasedHoldEntity: HoldEntity
 
     lateinit var releaseHoldResponse: ReleasedHoldResponse
@@ -490,13 +488,12 @@ class HoldsServiceTest {
     fun setup() {
       releaseHoldRequest = ReleaseHoldRequest(
         releaseDateTime = releaseDateTime,
-        prisonSubAccountUUID = prisonSubAccountUUID,
-        prisonerSubAccountUUID = prisonerSubAccountUUID,
+        prisonSubAccountId = prisonSubAccountUUID,
+        prisonerSubAccountId = prisonerSubAccountUUID,
         legacyTransactionId = legacyTransactionId,
       )
 
-      // TODO we only ever get the captor firstvalue so thiscould be brought into scope
-      transactionReqCaptor = argumentCaptor<CreateTransactionRequest>()
+      val transactionReqCaptor = argumentCaptor<CreateTransactionRequest>()
       whenever {
         generalLedgerApiClient.postTransaction(
           transactionReqCaptor.capture(),
@@ -535,7 +532,7 @@ class HoldsServiceTest {
 
       releaseHoldResponse = holdsService.releaseHoldById(holdUUID, releaseHoldRequest, idempotencyKey)
 
-      // transactionReq = transactionReqCaptor.firstValue
+      transactionReq = transactionReqCaptor.firstValue
     }
 
     @Test
@@ -556,28 +553,27 @@ class HoldsServiceTest {
       assertThat(releaseHoldResponse.releasedTransactionId).isEqualTo(glTransactionUUID)
     }
 
-//    @Test
-//    fun `transaction request is constructed as expected` () {
-//      assertThat(transactionReq.amount).isEqualTo(releaseHoldResponse.amountReleased)
-//      // TODO
-//      //assertThat(transactionReq.description).isEqualTo(releaseHoldResponse.)
-//      assertThat(transactionReq.reference).isEqualTo("")
-//      assertThat(transactionReq.entrySequence).isEqualTo(1)
-//      assertThat(transactionReq.timestamp).isEqualTo(releaseDateTime)
-//      assertThat(transactionReq.legacyTransactionId).isEqualTo(releaseHoldRequest.legacyTransactionId)
-//    }
-//
-//    @Test
-//    fun `transaction requests postings are constructed as expected`() {
-//      val creditPosting = transactionReq.postings.first { it.type == CreatePostingRequest.Type.CR }
-//      assertThat(creditPosting.subAccountId).isEqualTo(prisonSubAccountUUID)
-//      assertThat(creditPosting.entrySequence).isEqualTo(1)
-//      assertThat(creditPosting.amount).isEqualTo(holdEntity.amount)
-//
-//      val debitPosting = transactionReq.postings.first { it.type == CreatePostingRequest.Type.DR }
-//      assertThat(debitPosting.subAccountId).isEqualTo(prisonSubAccountUUID)
-//      assertThat(debitPosting.entrySequence).isEqualTo(2)
-//      assertThat(debitPosting.amount).isEqualTo(holdEntity.amount)
-//    }
+    @Test
+    fun `transaction request is constructed as expected`() {
+      assertThat(transactionReq.amount).isEqualTo(releaseHoldResponse.amountReleased)
+      assertThat(transactionReq.description).isEqualTo("Remove Hold")
+      assertThat(transactionReq.reference).isEqualTo("")
+      assertThat(transactionReq.entrySequence).isEqualTo(1)
+      assertThat(transactionReq.timestamp).isEqualTo(releaseDateTime)
+      assertThat(transactionReq.legacyTransactionId).isEqualTo(releaseHoldRequest.legacyTransactionId)
+    }
+
+    @Test
+    fun `transaction requests postings are constructed as expected`() {
+      val debitPosting = transactionReq.postings.first { it.type == CreatePostingRequest.Type.DR }
+      assertThat(debitPosting.subAccountId).isEqualTo(prisonSubAccountUUID)
+      assertThat(debitPosting.entrySequence).isEqualTo(1)
+      assertThat(debitPosting.amount).isEqualTo(releasedHoldEntity.amount)
+
+      val creditPosting = transactionReq.postings.first { it.type == CreatePostingRequest.Type.CR }
+      assertThat(creditPosting.subAccountId).isEqualTo(prisonerSubAccountUUID)
+      assertThat(creditPosting.entrySequence).isEqualTo(2)
+      assertThat(creditPosting.amount).isEqualTo(releasedHoldEntity.amount)
+    }
   }
 }
