@@ -683,6 +683,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
       // verifying hold released in db
       val holdEntity = integrationTestHelpers.selectHold(createdHold.id)
       assertThat(holdEntity.isReleased).isTrue()
+      assertThat(holdEntity.releasedTransactionId).isEqualTo(releasedTransactionId)
     }
 
     @Test
@@ -740,7 +741,8 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         .returnResult()
         .responseBody!!
 
-      assertThat(releaseResultOne).usingRecursiveComparison().isEqualTo(releaseResultTwo)
+      assertThat(releaseResultOne).usingRecursiveComparison().ignoringFields("releasedAt").isEqualTo(releaseResultTwo)
+      assertThat(releaseResultOne.releasedAt.truncatedTo(ChronoUnit.MILLIS)).isEqualTo(releaseResultOne.releasedAt.truncatedTo(ChronoUnit.MILLIS))
     }
 
     @Test
