@@ -142,8 +142,18 @@ class HoldsController(val holdsService: HoldsService) {
         content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
       ),
       ApiResponse(
+        responseCode = "404",
+        description = "Hold Not Found - Could not find the hold to release",
+        content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
+      ),
+      ApiResponse(
         responseCode = "500",
         description = "Internal Server Error - An unexpected error occurred.",
+        content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
+      ),
+      ApiResponse(
+        responseCode = "502",
+        description = "Bad Gateway - General Ledger responded with an error",
         content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
       ),
     ],
@@ -152,10 +162,21 @@ class HoldsController(val holdsService: HoldsService) {
   @PreAuthorize("hasAnyAuthority('$ROLE_PRISONER_FINANCE__HOLDS__RW')")
   @PostMapping("/holds/{id}/release")
   fun releaseHoldById(
+    @Parameter(
+      name = "Idempotency-Key",
+      `in` = ParameterIn.HEADER,
+      required = true,
+      description = "An Idempotency Key to ensure that transactions are not repeated",
+    )
+    @RequestHeader(
+      "Idempotency-Key",
+      required = true,
+    )
+    @Valid idempotencyKey: UUID,
     @PathVariable @Valid id: UUID,
     @RequestBody @Valid releaseHoldRequest: ReleaseHoldRequest,
   ): ResponseEntity<ReleasedHoldResponse> {
-    val releasedHoldResponse = holdsService.releaseHoldById(id, releaseHoldRequest, UUID.randomUUID())
+    val releasedHoldResponse = holdsService.releaseHoldById(id, releaseHoldRequest, idempotencyKey)
     return ResponseEntity.status(HttpStatus.OK).body(releasedHoldResponse)
   }
 
