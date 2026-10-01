@@ -689,6 +689,59 @@ class HoldsIntegrationTest : IntegrationTestBase() {
     }
 
     @Test
+    fun `should return 200 ok and update the hold released status when a valid release is received, posting a transaction to GL (without legacy transaction id)`() {
+      val releasedTransactionId = UUID.randomUUID()
+
+      val createdHold = integrationTestHelpers.createHold(
+        prisonNumber = prisonNumber,
+        holdNumber = Random.nextLong(),
+        subAccountRef = SubAccountRef.CASH,
+        amount = amount,
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(1),
+        isReleased = false,
+      )
+
+      val releaseTime = Instant.now()
+
+      val releaseRequest = ReleaseHoldRequest(
+        releaseDateTime = releaseTime,
+        prisonSubAccountId = prisonSubAccountUUID,
+        prisonerSubAccountId = prisonerSubAccountUUID,
+      )
+
+      generalLedgerApi.stubPostTransaction(
+        creditorSubAccountUuid = prisonerSubAccountUUID.toString(),
+        debtorSubAccountUuid = prisonSubAccountUUID.toString(),
+        returnUUID = releasedTransactionId,
+        amount = amount,
+      )
+
+      val releasedHoldResponse = webTestClient.post().uri("/holds/${createdHold.id}/release")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .headers(setIdempotencyKey(idempotencyKey))
+        .bodyValue(releaseRequest)
+        .exchange()
+        .expectStatus().isOk
+        .expectBody<ReleasedHoldResponse>()
+        .returnResult()
+        .responseBody!!
+
+      assertThat(releasedHoldResponse.releasedAt).isEqualTo(releaseTime)
+      assertThat(releasedHoldResponse.amountReleased).isEqualTo(createdHold.amount)
+      assertThat(releasedHoldResponse.id).isEqualTo(createdHold.id)
+      assertThat(releasedHoldResponse.subAccountRef).isEqualTo(createdHold.subAccountRef)
+      assertThat(releasedHoldResponse.prisonNumber).isEqualTo(createdHold.prisonNumber)
+
+      assertThat(releasedHoldResponse.releasedTransactionId).isEqualTo(releasedTransactionId)
+
+      // verifying hold released in db
+      val holdEntity = integrationTestHelpers.selectHold(createdHold.id)
+      assertThat(holdEntity.isReleased).isTrue()
+      assertThat(holdEntity.releasedTransactionId).isEqualTo(releasedTransactionId)
+    }
+
+    @Test
     fun `should return 200 if hold is already released, returning initial release data (is idempotent)`() {
       val createdHold = integrationTestHelpers.createHold(
         prisonNumber = prisonNumber,
