@@ -146,31 +146,34 @@ class HoldsService(
       holdToRelease.isReleased = true
       holdToRelease.releasedAt = releaseHoldRequest.releaseDateTime
 
-      val releaseTransactionId = generalLedgerApiClient.postTransaction(
-        request = CreateTransactionRequest(
-          reference = "",
-          description = "Remove Hold",
-          timestamp = releaseHoldRequest.releaseDateTime,
-          amount = holdToRelease.amount,
-          entrySequence = 1,
-          postings = listOf(
-            CreatePostingRequest(
-              type = CreatePostingRequest.Type.DR,
-              subAccountId = releaseHoldRequest.prisonSubAccountId,
-              amount = holdToRelease.amount,
-              entrySequence = 1,
-            ),
-            CreatePostingRequest(
-              type = CreatePostingRequest.Type.CR,
-              subAccountId = releaseHoldRequest.prisonerSubAccountId,
-              amount = holdToRelease.amount,
-              entrySequence = 2,
-            ),
+      val transactionRequest = CreateTransactionRequest(
+        reference = "",
+        description = "Remove Hold",
+        timestamp = releaseHoldRequest.releaseDateTime,
+        amount = holdToRelease.amount,
+        entrySequence = 1,
+        postings = listOf(
+          CreatePostingRequest(
+            type = CreatePostingRequest.Type.DR,
+            subAccountId = releaseHoldRequest.prisonSubAccountId,
+            amount = holdToRelease.amount,
+            entrySequence = 1,
           ),
-          legacyTransactionId = releaseHoldRequest.legacyTransactionId,
+          CreatePostingRequest(
+            type = CreatePostingRequest.Type.CR,
+            subAccountId = releaseHoldRequest.prisonerSubAccountId,
+            amount = holdToRelease.amount,
+            entrySequence = 2,
+          ),
         ),
+        legacyTransactionId = releaseHoldRequest.legacyTransactionId,
+      )
+
+      val releaseTransactionId = generalLedgerApiClient.postTransaction(
+        request = transactionRequest,
         idempotencyKey = idempotencyKey,
       )
+
       holdToRelease.releasedTransactionId = releaseTransactionId
       holdRepository.save(holdToRelease)
     }

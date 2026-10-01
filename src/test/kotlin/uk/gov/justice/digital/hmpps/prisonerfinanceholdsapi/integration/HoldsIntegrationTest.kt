@@ -666,6 +666,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
 
       val releasedHoldResponse = webTestClient.post().uri("/holds/${createdHold.id}/release")
         .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .headers(setIdempotencyKey(idempotencyKey))
         .bodyValue(releaseRequest)
         .exchange()
         .expectStatus().isOk
@@ -717,6 +718,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
 
       val releaseResultOne = webTestClient.post().uri("/holds/${createdHold.id}/release")
         .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .headers(setIdempotencyKey(idempotencyKey))
         .bodyValue(releaseRequestOne)
         .exchange()
         .expectStatus().isOk
@@ -735,6 +737,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
 
       val releaseResultTwo = webTestClient.post().uri("/holds/${createdHold.id}/release")
         .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .headers(setIdempotencyKey(idempotencyKey))
         .bodyValue(releaseRequestTwo)
         .exchange()
         .expectStatus().isOk
@@ -757,6 +760,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
 
       webTestClient.post().uri("/holds/${UUID.randomUUID()}/release")
         .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .headers(setIdempotencyKey(idempotencyKey))
         .bodyValue(releaseRequest)
         .exchange()
         .expectStatus().isNotFound
@@ -794,11 +798,9 @@ class HoldsIntegrationTest : IntegrationTestBase() {
       )
       webTestClient.post().uri("/holds/${createdHold.id}/release")
         .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
-        .headers(setIdempotencyKey(idempotencyKey))
         .bodyValue(releaseRequest)
         .exchange()
         .expectStatus().isBadRequest
-
     }
 
     @Test
@@ -812,6 +814,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
 
       webTestClient.post().uri("/holds/this-is-not-a-uuid/release")
         .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .headers(setIdempotencyKey(idempotencyKey))
         .bodyValue(releaseRequest)
         .exchange()
         .expectStatus().isBadRequest
@@ -821,6 +824,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
     fun `should return 400 bad request when not send a valid HoldReleaseRequest`() {
       webTestClient.post().uri("/holds/this-is-not-a-uuid/release")
         .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .headers(setIdempotencyKey(idempotencyKey))
         .bodyValue(mapper.writeValueAsString(mapOf("invalid" to "request")))
         .exchange()
         .expectStatus().isBadRequest
@@ -837,6 +841,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
 
       webTestClient.post().uri("/holds/${UUID.randomUUID()}/release")
         .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RO)))
+        .headers(setIdempotencyKey(idempotencyKey))
         .bodyValue(releaseRequest)
         .exchange()
         .expectStatus().isForbidden
@@ -865,6 +870,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
 
       webTestClient.post().uri("/holds/${createdHold.id}/release")
         .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .headers(setIdempotencyKey(idempotencyKey))
         .bodyValue(releaseRequest)
         .exchange()
         .expectStatus().isEqualTo(HttpStatus.BAD_GATEWAY)
