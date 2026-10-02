@@ -14,6 +14,7 @@ import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.generalledger
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.generalledger.CreateTransactionRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldMigrationRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldRequest
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.ReleaseHoldRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldBalanceResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.PagedResponse
@@ -55,7 +56,6 @@ class HoldsService(
     return generalLedgerApiClient.postTransaction(
       transactionReq,
       idempotencyKey,
-      transactionReq.legacyTransactionId,
     )
   }
 
@@ -76,6 +76,8 @@ class HoldsService(
       holdLocation = holdMigrationRequest.holdLocation,
       holdTransactionId = holdMigrationRequest.holdTransactionId,
       releasedTransactionId = holdMigrationRequest.releasedTransactionId,
+      prisonSubAccountId = holdMigrationRequest.prisonSubAccountId,
+      prisonerSubAccountId = holdMigrationRequest.prisonerSubAccountId,
     )
 
     return saveOrGetExistingHoldEntity(migratedHold, migratedHold.legacyHoldNumber)
@@ -118,6 +120,8 @@ class HoldsService(
       amount = createHoldRequest.amount,
       holdLocation = createHoldRequest.holdLocation,
       holdTransactionId = transactionGLId,
+      prisonSubAccountId = createHoldRequest.prisonSubAccountId,
+      prisonerSubAccountId = createHoldRequest.prisonerSubAccountId,
     )
 
     return saveOrGetExistingHoldEntity(newHold, createHoldRequest.legacyHoldNumber)
@@ -138,13 +142,43 @@ class HoldsService(
     return HoldBalanceResponse(Instant.now(), amount)
   }
 
-  fun releaseHoldById(holdId: UUID, releaseTime: Instant): ReleasedHoldResponse {
+  fun releaseHoldById(holdId: UUID, releaseHoldRequest: ReleaseHoldRequest, idempotencyKey: UUID): ReleasedHoldResponse {
     val holdToRelease = holdRepository.findHoldEntityById(holdId)
       ?: throw CustomException(status = HttpStatus.NOT_FOUND, message = "Hold not found")
 
     if (!holdToRelease.isReleased) {
       holdToRelease.isReleased = true
-      holdToRelease.releasedAt = releaseTime
+      holdToRelease.releasedAt = releaseHoldRequest.releaseDateTime
+
+      val transactionRequest = CreateTransactionRequest(
+        reference = "",
+        description = "Remove Hold",
+        timestamp = releaseHoldRequest.releaseDateTime,
+        amount = holdToRelease.amount,
+        entrySequence = 1,
+        postings = listOf(
+          CreatePostingRequest(
+            type = CreatePostingRequest.Type.DR,
+            subAccountId = releaseHoldRequest.prisonSubAccountId,
+            amount = holdToRelease.amount,
+            entrySequence = 1,
+          ),
+          CreatePostingRequest(
+            type = CreatePostingRequest.Type.CR,
+            subAccountId = releaseHoldRequest.prisonerSubAccountId,
+            amount = holdToRelease.amount,
+            entrySequence = 2,
+          ),
+        ),
+        legacyTransactionId = releaseHoldRequest.legacyTransactionId,
+      )
+
+      val releaseTransactionId = generalLedgerApiClient.postTransaction(
+        request = transactionRequest,
+        idempotencyKey = idempotencyKey,
+      )
+
+      holdToRelease.releasedTransactionId = releaseTransactionId
       holdRepository.save(holdToRelease)
     }
 
@@ -154,6 +188,7 @@ class HoldsService(
       subAccountRef = holdToRelease.subAccountRef,
       amountReleased = holdToRelease.amount,
       releasedAt = holdToRelease.releasedAt!!,
+      releasedTransactionId = holdToRelease.releasedTransactionId!!,
     )
   }
 
