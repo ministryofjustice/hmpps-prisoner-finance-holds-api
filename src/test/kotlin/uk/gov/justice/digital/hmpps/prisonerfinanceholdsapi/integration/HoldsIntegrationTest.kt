@@ -1269,6 +1269,8 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         holdLocation = "LEI",
         holdTransactionId = null,
         releasedTransactionId = null,
+        prisonerSubAccountId = UUID.randomUUID(),
+        prisonSubAccountId = UUID.randomUUID(),
       )
 
       val response = webTestClient.post().uri("/migrate/holds")
@@ -1315,6 +1317,8 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         holdLocation = "LEI",
         holdTransactionId = UUID.randomUUID(),
         releasedTransactionId = UUID.randomUUID(),
+        prisonerSubAccountId = UUID.randomUUID(),
+        prisonSubAccountId = UUID.randomUUID(),
       )
 
       val response = webTestClient.post().uri("/migrate/holds")
@@ -1361,6 +1365,8 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         holdLocation = "LEI",
         holdTransactionId = UUID.randomUUID(),
         releasedTransactionId = UUID.randomUUID(),
+        prisonerSubAccountId = UUID.randomUUID(),
+        prisonSubAccountId = UUID.randomUUID(),
       )
 
       val firstResponse = webTestClient.post().uri("/migrate/holds")
@@ -1425,6 +1431,8 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         holdLocation = "LEI",
         holdTransactionId = null,
         releasedTransactionId = null,
+        prisonerSubAccountId = UUID.randomUUID(),
+        prisonSubAccountId = UUID.randomUUID(),
       )
 
       val response = webTestClient.post().uri("/migrate/holds")
@@ -1458,6 +1466,8 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         holdLocation = "LEI",
         holdTransactionId = null,
         releasedTransactionId = null,
+        prisonerSubAccountId = UUID.randomUUID(),
+        prisonSubAccountId = UUID.randomUUID(),
       )
 
       webTestClient.post().uri("/migrate/holds")
