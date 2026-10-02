@@ -113,9 +113,16 @@ class HoldsServiceTest {
         )
       }.thenReturn(transactionGLId)
 
-      whenever { holdRepository.save(any<HoldEntity>()) }.thenReturn(holdEntity)
+      val holdEntityCaptor = argumentCaptor<HoldEntity>()
+
+      whenever { holdRepository.save(holdEntityCaptor.capture()) }.thenReturn(holdEntity)
 
       holdsService.createHold(createHoldRequest, idempotencyKey)
+
+      val savedHoldEntity = holdEntityCaptor.firstValue
+
+      assertThat(savedHoldEntity.prisonSubAccountId).isEqualTo(createHoldRequest.prisonSubAccountId)
+      assertThat(savedHoldEntity.prisonerSubAccountId).isEqualTo(createHoldRequest.prisonerSubAccountId)
 
       verify(generalLedgerApiClient, times(1))
         .postTransaction(
@@ -259,6 +266,8 @@ class HoldsServiceTest {
         holdType = HoldType.HOA,
         amount = 100,
         holdLocation = "LEI",
+        prisonerSubAccountId = UUID.randomUUID(),
+        prisonSubAccountId = UUID.randomUUID(),
       )
 
       val holdEntity = createHoldEntity(
@@ -270,9 +279,107 @@ class HoldsServiceTest {
         createdAt = migrationRequest.createdAt,
       )
 
-      whenever { holdRepository.save(any<HoldEntity>()) }.thenReturn(holdEntity)
+      val holdEntityCaptor = argumentCaptor<HoldEntity>()
+
+      whenever { holdRepository.save(holdEntityCaptor.capture()) }.thenReturn(holdEntity)
 
       holdsService.migrateHold(migrationRequest)
+
+      val migratedHoldEntity = holdEntityCaptor.firstValue
+
+      assertThat(migratedHoldEntity.prisonSubAccountId).isEqualTo(migrationRequest.prisonSubAccountId)
+      assertThat(migratedHoldEntity.prisonerSubAccountId).isEqualTo(migrationRequest.prisonerSubAccountId)
+
+      verify(holdRepository, times(1)).save(any())
+    }
+
+    @Test
+    fun `should create a hold with holdTransactionId mapping`() {
+      val migrationRequest = CreateHoldMigrationRequest(
+        prisonNumber = prisonNumber,
+        legacyHoldNumber = 1234,
+        subAccountRef = SubAccountRef.CASH,
+        createdAt = Instant.now(),
+        createdBy = "TEST",
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(1),
+        isReleased = false,
+        description = "",
+        holdType = HoldType.HOA,
+        amount = 100,
+        holdLocation = "LEI",
+        holdTransactionId = UUID.randomUUID(),
+        releasedTransactionId = null,
+        prisonSubAccountId = UUID.randomUUID(),
+        prisonerSubAccountId = UUID.randomUUID(),
+      )
+
+      val holdEntity = createHoldEntity(
+        prisonNumber = migrationRequest.prisonNumber,
+        holdNumber = migrationRequest.legacyHoldNumber,
+        subAccountRef = migrationRequest.subAccountRef,
+        isReleased = migrationRequest.isReleased,
+        amount = migrationRequest.amount,
+        createdAt = migrationRequest.createdAt,
+      )
+
+      val holdEntityCaptor = argumentCaptor<HoldEntity>()
+
+      whenever { holdRepository.save(holdEntityCaptor.capture()) }.thenReturn(holdEntity)
+
+      holdsService.migrateHold(migrationRequest)
+
+      val migratedHoldEntity = holdEntityCaptor.firstValue
+
+      assertThat(migratedHoldEntity.prisonSubAccountId).isEqualTo(migrationRequest.prisonSubAccountId)
+      assertThat(migratedHoldEntity.prisonerSubAccountId).isEqualTo(migrationRequest.prisonerSubAccountId)
+      assertThat(migratedHoldEntity.holdTransactionId).isEqualTo(migrationRequest.holdTransactionId)
+
+      verify(holdRepository, times(1)).save(any())
+    }
+
+    @Test
+    fun `should create a hold with releaseTransactionId mapping`() {
+      val migrationRequest = CreateHoldMigrationRequest(
+        prisonNumber = prisonNumber,
+        legacyHoldNumber = 1234,
+        subAccountRef = SubAccountRef.CASH,
+        createdAt = Instant.now(),
+        createdBy = "TEST",
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(1),
+        isReleased = true,
+        description = "",
+        holdType = HoldType.HOA,
+        amount = 100,
+        holdLocation = "LEI",
+        holdTransactionId = UUID.randomUUID(),
+        releasedTransactionId = UUID.randomUUID(),
+        prisonSubAccountId = UUID.randomUUID(),
+        prisonerSubAccountId = UUID.randomUUID(),
+      )
+
+      val holdEntity = createHoldEntity(
+        prisonNumber = migrationRequest.prisonNumber,
+        holdNumber = migrationRequest.legacyHoldNumber,
+        subAccountRef = migrationRequest.subAccountRef,
+        isReleased = migrationRequest.isReleased,
+        amount = migrationRequest.amount,
+        createdAt = migrationRequest.createdAt,
+      )
+
+      val holdEntityCaptor = argumentCaptor<HoldEntity>()
+
+      whenever { holdRepository.save(holdEntityCaptor.capture()) }.thenReturn(holdEntity)
+
+      holdsService.migrateHold(migrationRequest)
+
+      val migratedHoldEntity = holdEntityCaptor.firstValue
+
+      assertThat(migratedHoldEntity.prisonSubAccountId).isEqualTo(migrationRequest.prisonSubAccountId)
+      assertThat(migratedHoldEntity.prisonerSubAccountId).isEqualTo(migrationRequest.prisonerSubAccountId)
+      assertThat(migratedHoldEntity.holdTransactionId).isEqualTo(migrationRequest.holdTransactionId)
+      assertThat(migratedHoldEntity.releasedTransactionId).isEqualTo(migrationRequest.releasedTransactionId)
 
       verify(holdRepository, times(1)).save(any())
     }
@@ -295,6 +402,8 @@ class HoldsServiceTest {
         holdLocation = "LEI",
         holdTransactionId = UUID.randomUUID(),
         releasedTransactionId = UUID.randomUUID(),
+        prisonerSubAccountId = UUID.randomUUID(),
+        prisonSubAccountId = UUID.randomUUID(),
       )
 
       val holdEntity = createHoldEntity(
@@ -426,6 +535,10 @@ class HoldsServiceTest {
         amount = 1,
         holdLocation = "LEI",
         releasedAt = null,
+        holdTransactionId = UUID.randomUUID(),
+        releasedTransactionId = UUID.randomUUID(),
+        prisonerSubAccountId = UUID.randomUUID(),
+        prisonSubAccountId = UUID.randomUUID(),
       )
 
       val pageNumber = 1
