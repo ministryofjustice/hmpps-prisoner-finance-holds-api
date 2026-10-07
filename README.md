@@ -153,3 +153,31 @@ Do a new build to verify everything is okay
 ./gradlew clean build
 ```
 Commit: Commit the updated .json file. Do not commit the generated code in build/.
+
+## Database schema
+
+A browsable schema report is published from `main` to
+[ministryofjustice.github.io/hmpps-prisoner-finance-holds-api/schema-spy-report](https://ministryofjustice.github.io/hmpps-prisoner-finance-holds-api/schema-spy-report/),
+along with two CSV exports for the MOJ Data Catalogue:
+
+| File | Contents |
+|------|----------|
+| `data-dictionary.csv` | Every table and column, with its description, sensitivity classification, type, nullability, PK and FK |
+
+The report shows every table and column, with types, nullability, primary and foreign keys, and ER
+diagrams. Share it rather than a hand-written description when explaining the schema — to the Data Hub
+transition team, or when working out what a subject access request covers.
+
+It is generated from a database built by Flyway, so it cannot drift from the migrations. To regenerate
+it locally:
+
+```shell
+docker compose -f docker-compose.yml -f docker-compose-schema-spy.yml up -d --wait
+curl -L https://github.com/schemaspy/schemaspy/releases/download/v7.0.2/schemaspy-app.jar --output /tmp/schemaspy.jar
+curl -L https://jdbc.postgresql.org/download/postgresql-42.7.13.jar --output /tmp/postgres-driver.jar
+export JAVA_OPTS="-Xmx512m -XX:ParallelGCThreads=2 -XX:ConcGCThreads=2 -Djava.util.concurrent.ForkJoinPool.common.parallelism=2 -Dorg.gradle.daemon=false -Dkotlin.compiler.execution.strategy=in-process"
+java -jar /tmp/schemaspy.jar -t pgsql11 -dp /tmp/postgres-driver.jar \
+      -db holds -host localhost -port 5432 -s public -vizjs -u postgres -p postgres \
+      -I flyway_schema_history  -norows -o /tmp/schema-spy-report
+scripts/generate-data-dictionary.sh
+```

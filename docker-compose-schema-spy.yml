@@ -1,0 +1,4 @@
+services:
+  hmpps-prisoner-finance-holds-db:
+    ports: !override
+      - "5432:5432"

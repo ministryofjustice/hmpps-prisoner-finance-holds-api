@@ -64,6 +64,20 @@ jobs:
     needs:
       - app_version
 
+  schema-spy:
+    name: SchemaSpy report
+    if: github.ref == 'refs/heads/main'
+    needs:
+      - gradle_verify
+    uses: ./.github/workflows/schema-spy.yml
+    with:
+      docker_compose_file: 'docker-compose-schema-spy.yml'
+      database_name: 'holds'
+      database_user: 'postgres'
+      database_password: 'postgres'
+      database_type: pgsql11
+    secrets: inherit
+
   coverage:
     name: Code Coverage Report
     runs-on: ubuntu-latest
