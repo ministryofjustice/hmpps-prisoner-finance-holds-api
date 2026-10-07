@@ -83,7 +83,7 @@ jobs:
       - name: Initialise database and generate SchemaSpy report
         shell: bash
         run: |
-          docker compose -f docker-compose.yml -f ${{ inputs.docker_compose_file }} up -d
+          docker compose -f ${{ inputs.docker_compose_file }} up -d --wait
           curl -L https://github.com/schemaspy/schemaspy/releases/download/v${{ inputs.schemaspy_version }}/schemaspy-app.jar --output /tmp/schemaspy.jar
           curl -L https://jdbc.postgresql.org/download/postgresql-${{ inputs.postgres_driver_version }}.jar --output /tmp/postgres-driver.jar
           export JAVA_OPTS="${{ inputs.java_options }}"
