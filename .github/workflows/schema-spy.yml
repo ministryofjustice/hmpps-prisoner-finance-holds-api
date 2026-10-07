@@ -27,10 +27,6 @@ on:
         description: Path to Docker Compose file to start localstack and postgres containers
         type: string
         required: true
-      init_db_cli:
-        description: Command line to initialise database
-        type: string
-        default: './gradlew check'
       database_name:
         description: Database name
         type: string
@@ -91,7 +87,6 @@ jobs:
           curl -L https://github.com/schemaspy/schemaspy/releases/download/v${{ inputs.schemaspy_version }}/schemaspy-app.jar --output /tmp/schemaspy.jar
           curl -L https://jdbc.postgresql.org/download/postgresql-${{ inputs.postgres_driver_version }}.jar --output /tmp/postgres-driver.jar
           export JAVA_OPTS="${{ inputs.java_options }}"
-          ${{ inputs.init_db_cli }}
           java -jar /tmp/schemaspy.jar -t ${{ inputs.database_type }} -dp /tmp/postgres-driver.jar -db ${{ inputs.database_name }} -host localhost -port 5432 -s ${{ inputs.database_schema }} -vizjs -u ${{ inputs.database_user }} -p ${{ inputs.database_password }} -I ${{ inputs.exclude }} -norows -o /tmp/schema-spy-report
 
       - name: Setup GitHub Pages
