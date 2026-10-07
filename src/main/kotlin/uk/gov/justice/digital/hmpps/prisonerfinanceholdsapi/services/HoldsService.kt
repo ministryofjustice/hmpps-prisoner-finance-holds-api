@@ -23,6 +23,8 @@ import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.utils.toPageResponse
 import java.time.Instant
 import java.util.UUID
 
+const val HOLD_ACCOUNT_CODE = "2199"
+
 @Service
 class HoldsService(
   val holdRepository: HoldRepository,
@@ -150,35 +152,55 @@ class HoldsService(
       holdToRelease.isReleased = true
       holdToRelease.releasedAt = releaseHoldRequest.releaseDateTime
 
-      val transactionRequest = CreateTransactionRequest(
-        reference = "",
-        description = "Remove Hold",
-        timestamp = releaseHoldRequest.releaseDateTime,
-        amount = holdToRelease.amount,
-        entrySequence = 1,
-        postings = listOf(
-          CreatePostingRequest(
-            type = CreatePostingRequest.Type.DR,
-            subAccountId = releaseHoldRequest.prisonSubAccountId,
-            amount = holdToRelease.amount,
-            entrySequence = 1,
-          ),
-          CreatePostingRequest(
-            type = CreatePostingRequest.Type.CR,
-            subAccountId = releaseHoldRequest.prisonerSubAccountId,
-            amount = holdToRelease.amount,
-            entrySequence = 2,
-          ),
-        ),
-        legacyTransactionId = releaseHoldRequest.legacyTransactionId,
+//      // Here we need to figure out the prison subaccount ID, prisoner subaccount ID
+//
+      val prisonerSubAccount = generalLedgerApiClient.findSubAccount(
+        parentReference = holdToRelease.prisonNumber,
+        subAccountReference = holdToRelease.subAccountRef.toString(),
       )
 
-      val releaseTransactionId = generalLedgerApiClient.postTransaction(
-        request = transactionRequest,
-        idempotencyKey = idempotencyKey,
+      if (prisonerSubAccount == null) {
+        throw CustomException(status = HttpStatus.NOT_FOUND, message = "Prisoner subaccount not found")
+      }
+
+      val prisonSubAccount = generalLedgerApiClient.findSubAccount(
+        parentReference = holdToRelease.holdLocation,
+        subAccountReference = "${HOLD_ACCOUNT_CODE}:${holdToRelease.holdType.getReleaseType()}",
       )
 
-      holdToRelease.releasedTransactionId = releaseTransactionId
+      if (prisonSubAccount == null) {
+        throw CustomException(status = HttpStatus.NOT_FOUND, message = "Prison subaccount not found")
+      }
+//
+//      val transactionRequest = CreateTransactionRequest(
+//        reference = "",
+//        description = "Remove Hold",
+//        timestamp = releaseHoldRequest.releaseDateTime,
+//        amount = holdToRelease.amount,
+//        entrySequence = 1,
+//        postings = listOf(
+//          CreatePostingRequest(
+//            type = CreatePostingRequest.Type.DR,
+//            subAccountId = UUID.randomUUID(),
+//            amount = holdToRelease.amount,
+//            entrySequence = 1,
+//          ),
+//          CreatePostingRequest(
+//            type = CreatePostingRequest.Type.CR,
+//            subAccountId = prisonerSubAccount!!.id,
+//            amount = holdToRelease.amount,
+//            entrySequence = 2,
+//          ),
+//        ),
+//        legacyTransactionId = releaseHoldRequest.legacyTransactionId,
+//      )
+//
+//      val releaseTransactionId = generalLedgerApiClient.postTransaction(
+//        request = transactionRequest,
+//        idempotencyKey = idempotencyKey,
+//      )
+
+//      holdToRelease.releasedTransactionId = releaseTransactionId
       holdRepository.save(holdToRelease)
     }
 
@@ -188,7 +210,7 @@ class HoldsService(
       subAccountRef = holdToRelease.subAccountRef,
       amountReleased = holdToRelease.amount,
       releasedAt = holdToRelease.releasedAt!!,
-      releasedTransactionId = holdToRelease.releasedTransactionId!!,
+//      releasedTransactionId = holdToRelease.releasedTransactionId!!,
     )
   }
 

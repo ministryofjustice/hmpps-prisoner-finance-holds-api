@@ -10,5 +10,5 @@ data class ReleasedHoldResponse(
   val subAccountRef: SubAccountRef,
   val amountReleased: Long,
   val releasedAt: Instant,
-  val releasedTransactionId: UUID,
+  val releasedTransactionId: UUID? = null,
 )

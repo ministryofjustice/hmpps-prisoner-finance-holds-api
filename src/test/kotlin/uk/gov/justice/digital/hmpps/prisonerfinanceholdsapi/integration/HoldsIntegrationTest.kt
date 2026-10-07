@@ -651,8 +651,6 @@ class HoldsIntegrationTest : IntegrationTestBase() {
 
       val releaseRequest = ReleaseHoldRequest(
         releaseDateTime = releaseTime,
-        prisonSubAccountId = prisonSubAccountUUID,
-        prisonerSubAccountId = prisonerSubAccountUUID,
         legacyTransactionId = legacyTransactionId,
       )
 
@@ -706,8 +704,6 @@ class HoldsIntegrationTest : IntegrationTestBase() {
 
       val releaseRequest = ReleaseHoldRequest(
         releaseDateTime = releaseTime,
-        prisonSubAccountId = prisonSubAccountUUID,
-        prisonerSubAccountId = prisonerSubAccountUUID,
       )
 
       generalLedgerApi.stubPostTransaction(
@@ -758,8 +754,6 @@ class HoldsIntegrationTest : IntegrationTestBase() {
       val releaseRequestOne = ReleaseHoldRequest(
         releaseDateTime = initialReleaseTime,
         legacyTransactionId = legacyTransactionId,
-        prisonSubAccountId = prisonSubAccountUUID,
-        prisonerSubAccountId = prisonerSubAccountUUID,
       )
 
       generalLedgerApi.stubPostTransaction(
@@ -784,8 +778,6 @@ class HoldsIntegrationTest : IntegrationTestBase() {
       val releaseRequestTwo = ReleaseHoldRequest(
         releaseDateTime = initialReleaseTime.plusSeconds(1),
         legacyTransactionId = legacyTransactionId,
-        prisonSubAccountId = prisonSubAccountUUID,
-        prisonerSubAccountId = prisonerSubAccountUUID,
       )
 
       val releaseResultTwo = webTestClient.post().uri("/holds/${createdHold.id}/release")
@@ -807,8 +799,6 @@ class HoldsIntegrationTest : IntegrationTestBase() {
       val releaseRequest = ReleaseHoldRequest(
         releaseDateTime = Instant.now(),
         legacyTransactionId = legacyTransactionId,
-        prisonSubAccountId = prisonSubAccountUUID,
-        prisonerSubAccountId = prisonerSubAccountUUID,
       )
 
       webTestClient.post().uri("/holds/${UUID.randomUUID()}/release")
@@ -837,8 +827,6 @@ class HoldsIntegrationTest : IntegrationTestBase() {
 
       val releaseRequest = ReleaseHoldRequest(
         releaseDateTime = releaseTime,
-        prisonSubAccountId = prisonSubAccountUUID,
-        prisonerSubAccountId = prisonerSubAccountUUID,
         legacyTransactionId = legacyTransactionId,
       )
 
@@ -861,8 +849,6 @@ class HoldsIntegrationTest : IntegrationTestBase() {
       val releaseRequest = ReleaseHoldRequest(
         releaseDateTime = Instant.now(),
         legacyTransactionId = legacyTransactionId,
-        prisonSubAccountId = prisonSubAccountUUID,
-        prisonerSubAccountId = prisonerSubAccountUUID,
       )
 
       webTestClient.post().uri("/holds/this-is-not-a-uuid/release")
@@ -888,8 +874,6 @@ class HoldsIntegrationTest : IntegrationTestBase() {
       val releaseRequest = ReleaseHoldRequest(
         releaseDateTime = Instant.now(),
         legacyTransactionId = legacyTransactionId,
-        prisonSubAccountId = prisonSubAccountUUID,
-        prisonerSubAccountId = prisonerSubAccountUUID,
       )
 
       webTestClient.post().uri("/holds/${UUID.randomUUID()}/release")
@@ -905,8 +889,6 @@ class HoldsIntegrationTest : IntegrationTestBase() {
       val releaseRequest = ReleaseHoldRequest(
         releaseDateTime = Instant.now(),
         legacyTransactionId = legacyTransactionId,
-        prisonSubAccountId = prisonSubAccountUUID,
-        prisonerSubAccountId = prisonerSubAccountUUID,
       )
 
       val createdHold = integrationTestHelpers.createHold(
