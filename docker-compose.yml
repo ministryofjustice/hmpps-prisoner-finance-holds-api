@@ -12,6 +12,7 @@ services:
       - SERVER_PORT=8080
       - HMPPS_AUTH_URL=http://hmpps-auth:8080/auth
       - SPRING_PROFILES_ACTIVE=dev
+      - DB_SERVER=hmpps-prisoner-finance-holds-db:5432
 
   hmpps-prisoner-finance-holds-db:
     container_name: hmpps-prisoner-finance-holds-db
