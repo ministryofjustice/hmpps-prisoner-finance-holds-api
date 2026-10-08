@@ -171,34 +171,36 @@ class HoldsService(
       if (prisonSubAccount == null) {
         throw CustomException(status = HttpStatus.NOT_FOUND, message = "Prison subaccount not found")
       }
-//
-//      val transactionRequest = CreateTransactionRequest(
-//        reference = "",
-//        description = "Remove Hold",
-//        timestamp = releaseHoldRequest.releaseDateTime,
-//        amount = holdToRelease.amount,
-//        entrySequence = 1,
-//        postings = listOf(
-//          CreatePostingRequest(
-//            type = CreatePostingRequest.Type.DR,
-//            subAccountId = UUID.randomUUID(),
-//            amount = holdToRelease.amount,
-//            entrySequence = 1,
-//          ),
-//          CreatePostingRequest(
-//            type = CreatePostingRequest.Type.CR,
-//            subAccountId = prisonerSubAccount!!.id,
-//            amount = holdToRelease.amount,
-//            entrySequence = 2,
-//          ),
-//        ),
-//        legacyTransactionId = releaseHoldRequest.legacyTransactionId,
-//      )
-//
-//      val releaseTransactionId = generalLedgerApiClient.postTransaction(
-//        request = transactionRequest,
-//        idempotencyKey = idempotencyKey,
-//      )
+
+      try {
+        val releaseTransactionId = generalLedgerApiClient.postTransaction(
+          CreateTransactionRequest(
+            reference = "",
+            description = "Remove Hold",
+            timestamp = releaseHoldRequest.releaseDateTime,
+            amount = holdToRelease.amount,
+            entrySequence = 1,
+            postings = listOf(
+              CreatePostingRequest(
+                subAccountId = prisonerSubAccount.id,
+                type = CreatePostingRequest.Type.CR,
+                amount = holdToRelease.amount,
+                entrySequence = 1,
+              ),
+              CreatePostingRequest(
+                subAccountId = prisonSubAccount.id,
+                type = CreatePostingRequest.Type.DR,
+                amount = holdToRelease.amount,
+                entrySequence = 2,
+              ),
+            ),
+            legacyTransactionId = releaseHoldRequest.legacyTransactionId,
+          ),
+          idempotencyKey = idempotencyKey,
+        )
+      } catch (e: Exception) {
+        throw CustomException(status = HttpStatus.BAD_REQUEST, message = "Release transaction failed")
+      }
 
 //      holdToRelease.releasedTransactionId = releaseTransactionId
       holdRepository.save(holdToRelease)
