@@ -631,6 +631,15 @@ class HoldsServiceTest {
       createdAt = Instant.now(),
     )
 
+    val prisonParentAccountId = UUID.randomUUID()
+    val prisonSubAccountResponse = SubAccountResponse(
+      id = prisonSubAccountUUID,
+      reference = "2199:HOR",
+      parentAccountId = prisonParentAccountId,
+      createdBy = "JOHN_USER",
+      createdAt = Instant.now(),
+    )
+
     @Test
     fun `should throw a 404 if the prisoner subaccount cannot be found`() {
       whenever {
@@ -693,7 +702,7 @@ class HoldsServiceTest {
           "LEI",
           expectedHoldType,
         )
-      }.thenReturn(null)
+      }.thenReturn(prisonSubAccountResponse)
 
       holdsService.releaseHoldById(holdUUID, releaseHoldRequest, idempotencyKey)
     }
@@ -730,22 +739,6 @@ class HoldsServiceTest {
         releasedAt = releaseHoldRequest.releaseDateTime,
       )
 
-//      val transactionReqCaptor = argumentCaptor<CreateTransactionRequest>()
-//      whenever {
-//        generalLedgerApiClient.postTransaction(
-//          transactionReqCaptor.capture(),
-//          any(),
-//        )
-//      }.thenReturn(glTransactionUUID)
-
-      val prisonParentAccountId = UUID.randomUUID()
-      val prisonSubAccountResponse = SubAccountResponse(
-        id = prisonSubAccountUUID,
-        reference = "2199:HOR",
-        parentAccountId = prisonParentAccountId,
-        createdBy = "JOHN_USER",
-        createdAt = Instant.now(),
-      )
       whenever {
         generalLedgerApiClient.findSubAccount(
           parentReference = unreleasedHoldEntity.prisonNumber,
