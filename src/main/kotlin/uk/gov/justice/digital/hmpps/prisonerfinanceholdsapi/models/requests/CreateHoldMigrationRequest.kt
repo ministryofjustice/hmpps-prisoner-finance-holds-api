@@ -58,10 +58,4 @@ class CreateHoldMigrationRequest(
 
   @field:Schema(description = "The General Ledger release transaction ID", example = "1234", required = false)
   val releasedTransactionId: UUID? = null,
-
-  @field:Schema(description = "The prisoner sub account UUID", required = true)
-  val prisonerSubAccountId: UUID,
-
-  @field:Schema(description = "The prison sub account UUID", required = true)
-  val prisonSubAccountId: UUID,
 )

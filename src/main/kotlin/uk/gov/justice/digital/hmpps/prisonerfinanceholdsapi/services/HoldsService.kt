@@ -78,8 +78,6 @@ class HoldsService(
       holdLocation = holdMigrationRequest.holdLocation,
       holdTransactionId = holdMigrationRequest.holdTransactionId,
       releasedTransactionId = holdMigrationRequest.releasedTransactionId,
-      prisonSubAccountId = holdMigrationRequest.prisonSubAccountId,
-      prisonerSubAccountId = holdMigrationRequest.prisonerSubAccountId,
     )
 
     return saveOrGetExistingHoldEntity(migratedHold, migratedHold.legacyHoldNumber)
@@ -122,8 +120,6 @@ class HoldsService(
       amount = createHoldRequest.amount,
       holdLocation = createHoldRequest.holdLocation,
       holdTransactionId = transactionGLId,
-      prisonSubAccountId = createHoldRequest.prisonSubAccountId,
-      prisonerSubAccountId = createHoldRequest.prisonerSubAccountId,
     )
 
     return saveOrGetExistingHoldEntity(newHold, createHoldRequest.legacyHoldNumber)

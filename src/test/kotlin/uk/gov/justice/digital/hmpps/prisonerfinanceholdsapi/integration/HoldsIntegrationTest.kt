@@ -272,8 +272,6 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         holdType = HoldType.HOA,
         amount = 1000L,
         holdLocation = "LEI",
-        prisonerSubAccountId = UUID.randomUUID(),
-        prisonSubAccountId = UUID.randomUUID(),
         holdLegacyTransactionId = 1234,
       )
 
@@ -301,8 +299,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         holdType = HoldType.HOA,
         amount = 1000L,
         holdLocation = "LEI",
-        prisonerSubAccountId = UUID.randomUUID(),
-        prisonSubAccountId = UUID.randomUUID(),
+
         holdLegacyTransactionId = 1234,
       )
 
@@ -388,8 +385,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         amount = 1000L,
         holdLocation = "LEI",
         holdLegacyTransactionId = 123L,
-        prisonerSubAccountId = UUID.randomUUID(),
-        prisonSubAccountId = UUID.randomUUID(),
+
         releaseLegacyTransactionId = null,
       )
 
@@ -1372,8 +1368,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         holdLocation = "LEI",
         holdTransactionId = null,
         releasedTransactionId = null,
-        prisonerSubAccountId = UUID.randomUUID(),
-        prisonSubAccountId = UUID.randomUUID(),
+
       )
 
       val response = webTestClient.post().uri("/migrate/holds")
@@ -1420,8 +1415,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         holdLocation = "LEI",
         holdTransactionId = UUID.randomUUID(),
         releasedTransactionId = UUID.randomUUID(),
-        prisonerSubAccountId = UUID.randomUUID(),
-        prisonSubAccountId = UUID.randomUUID(),
+
       )
 
       val response = webTestClient.post().uri("/migrate/holds")
@@ -1468,8 +1462,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         holdLocation = "LEI",
         holdTransactionId = UUID.randomUUID(),
         releasedTransactionId = UUID.randomUUID(),
-        prisonerSubAccountId = UUID.randomUUID(),
-        prisonSubAccountId = UUID.randomUUID(),
+
       )
 
       val firstResponse = webTestClient.post().uri("/migrate/holds")
@@ -1534,8 +1527,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         holdLocation = "LEI",
         holdTransactionId = null,
         releasedTransactionId = null,
-        prisonerSubAccountId = UUID.randomUUID(),
-        prisonSubAccountId = UUID.randomUUID(),
+
       )
 
       val response = webTestClient.post().uri("/migrate/holds")
@@ -1569,8 +1561,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         holdLocation = "LEI",
         holdTransactionId = null,
         releasedTransactionId = null,
-        prisonerSubAccountId = UUID.randomUUID(),
-        prisonSubAccountId = UUID.randomUUID(),
+
       )
 
       webTestClient.post().uri("/migrate/holds")
