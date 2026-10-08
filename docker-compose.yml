@@ -13,6 +13,14 @@ services:
       - HMPPS_AUTH_URL=http://hmpps-auth:8080/auth
       - SPRING_PROFILES_ACTIVE=dev
       - DB_SERVER=hmpps-prisoner-finance-holds-db:5432
+    depends_on:
+      hmpps-auth:
+        condition: service_started
+      hmpps-prisoner-finance-general-ledger:
+        condition: service_started
+      hmpps-prisoner-finance-holds-db:
+        condition: service_healthy
+        restart: true
 
   hmpps-prisoner-finance-holds-db:
     container_name: hmpps-prisoner-finance-holds-db
@@ -31,7 +39,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-
 
   hmpps-auth:
     image: ghcr.io/ministryofjustice/hmpps-auth:latest
@@ -105,8 +112,6 @@ services:
     environment:
       - SERVICES=sqs
       - DEFAULT_REGION=eu-west-2
-    volumes:
-      - "${LOCALSTACK_VOLUME_DIR:-./volume}:/var/lib/localstack"
 
 networks:
   hmpps:

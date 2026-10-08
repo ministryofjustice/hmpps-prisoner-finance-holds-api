@@ -172,7 +172,7 @@ It is generated from a database built by Flyway, so it cannot drift from the mig
 it locally:
 
 ```shell
-docker compose -f docker-compose.yml -f docker-compose-schema-spy.yml up -d --wait
+docker compose -f docker-compose-schema-spy.yml up -d --wait
 curl -L https://github.com/schemaspy/schemaspy/releases/download/v7.0.2/schemaspy-app.jar --output /tmp/schemaspy.jar
 curl -L https://jdbc.postgresql.org/download/postgresql-42.7.13.jar --output /tmp/postgres-driver.jar
 export JAVA_OPTS="-Xmx512m -XX:ParallelGCThreads=2 -XX:ConcGCThreads=2 -Djava.util.concurrent.ForkJoinPool.common.parallelism=2 -Dorg.gradle.daemon=false -Dkotlin.compiler.execution.strategy=in-process"
