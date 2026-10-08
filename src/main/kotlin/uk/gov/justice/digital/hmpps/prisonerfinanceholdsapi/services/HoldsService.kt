@@ -169,7 +169,7 @@ class HoldsService(
 
       try {
         val releaseTransactionId = generalLedgerApiClient.postTransaction(
-          CreateTransactionRequest(
+          request = CreateTransactionRequest(
             reference = "",
             description = "Remove Hold",
             timestamp = releaseHoldRequest.releaseDateTime,
@@ -196,7 +196,7 @@ class HoldsService(
 
         holdToRelease.releasedTransactionId = releaseTransactionId
       } catch (e: Exception) {
-        throw CustomException(status = HttpStatus.BAD_REQUEST, message = "Release transaction failed")
+        throw CustomException(status = HttpStatus.BAD_GATEWAY, message = "Release transaction failed")
       }
 
       holdToRelease.isReleased = true

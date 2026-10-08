@@ -21,6 +21,7 @@ import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.integration.wiremock
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.entities.HoldEntity
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.HoldType
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.SubAccountRef
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.generalledger.SubAccountResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldMigrationRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.ReleaseHoldRequest
@@ -654,6 +655,36 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         legacyTransactionId = legacyTransactionId,
       )
 
+      generalLedgerApi.stubGetSubAccount(
+        parentReference = createdHold.prisonNumber,
+        subAccountReference = createdHold.subAccountRef.toString(),
+        parentAccountId = UUID.randomUUID(),
+        response = listOf(
+          SubAccountResponse(
+            id = prisonerSubAccountUUID,
+            reference = createdHold.subAccountRef.toString(),
+            parentAccountId = UUID.randomUUID(),
+            createdBy = "JOHN_USER",
+            createdAt = Instant.now(),
+          ),
+        ),
+      )
+
+      generalLedgerApi.stubGetSubAccount(
+        parentReference = createdHold.holdLocation,
+        subAccountReference = "2199:HOR",
+        parentAccountId = UUID.randomUUID(),
+        response = listOf(
+          SubAccountResponse(
+            id = prisonSubAccountUUID,
+            reference = "2199:HOR",
+            parentAccountId = UUID.randomUUID(),
+            createdBy = "JOHN_USER",
+            createdAt = Instant.now(),
+          ),
+        ),
+      )
+
       generalLedgerApi.stubPostTransaction(
         creditorSubAccountUuid = prisonerSubAccountUUID.toString(),
         debtorSubAccountUuid = prisonSubAccountUUID.toString(),
@@ -706,6 +737,36 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         releaseDateTime = releaseTime,
       )
 
+      generalLedgerApi.stubGetSubAccount(
+        parentReference = createdHold.prisonNumber,
+        subAccountReference = createdHold.subAccountRef.toString(),
+        parentAccountId = UUID.randomUUID(),
+        response = listOf(
+          SubAccountResponse(
+            id = prisonerSubAccountUUID,
+            reference = createdHold.subAccountRef.toString(),
+            parentAccountId = UUID.randomUUID(),
+            createdBy = "JOHN_USER",
+            createdAt = Instant.now(),
+          ),
+        ),
+      )
+
+      generalLedgerApi.stubGetSubAccount(
+        parentReference = createdHold.holdLocation,
+        subAccountReference = "2199:HOR",
+        parentAccountId = UUID.randomUUID(),
+        response = listOf(
+          SubAccountResponse(
+            id = prisonSubAccountUUID,
+            reference = "2199:HOR",
+            parentAccountId = UUID.randomUUID(),
+            createdBy = "JOHN_USER",
+            createdAt = Instant.now(),
+          ),
+        ),
+      )
+
       generalLedgerApi.stubPostTransaction(
         creditorSubAccountUuid = prisonerSubAccountUUID.toString(),
         debtorSubAccountUuid = prisonSubAccountUUID.toString(),
@@ -754,6 +815,36 @@ class HoldsIntegrationTest : IntegrationTestBase() {
       val releaseRequestOne = ReleaseHoldRequest(
         releaseDateTime = initialReleaseTime,
         legacyTransactionId = legacyTransactionId,
+      )
+
+      generalLedgerApi.stubGetSubAccount(
+        parentReference = createdHold.prisonNumber,
+        subAccountReference = createdHold.subAccountRef.toString(),
+        parentAccountId = UUID.randomUUID(),
+        response = listOf(
+          SubAccountResponse(
+            id = prisonerSubAccountUUID,
+            reference = createdHold.subAccountRef.toString(),
+            parentAccountId = UUID.randomUUID(),
+            createdBy = "JOHN_USER",
+            createdAt = Instant.now(),
+          ),
+        ),
+      )
+
+      generalLedgerApi.stubGetSubAccount(
+        parentReference = createdHold.holdLocation,
+        subAccountReference = "2199:HOR",
+        parentAccountId = UUID.randomUUID(),
+        response = listOf(
+          SubAccountResponse(
+            id = prisonSubAccountUUID,
+            reference = "2199:HOR",
+            parentAccountId = UUID.randomUUID(),
+            createdBy = "JOHN_USER",
+            createdAt = Instant.now(),
+          ),
+        ),
       )
 
       generalLedgerApi.stubPostTransaction(
@@ -899,6 +990,36 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         holdFromDate = Instant.now(),
         holdUntilDate = Instant.now().plusSeconds(1),
         isReleased = false,
+      )
+
+      generalLedgerApi.stubGetSubAccount(
+        parentReference = createdHold.prisonNumber,
+        subAccountReference = createdHold.subAccountRef.toString(),
+        parentAccountId = UUID.randomUUID(),
+        response = listOf(
+          SubAccountResponse(
+            id = prisonerSubAccountUUID,
+            reference = createdHold.subAccountRef.toString(),
+            parentAccountId = UUID.randomUUID(),
+            createdBy = "JOHN_USER",
+            createdAt = Instant.now(),
+          ),
+        ),
+      )
+
+      generalLedgerApi.stubGetSubAccount(
+        parentReference = createdHold.holdLocation,
+        subAccountReference = "2199:HOR",
+        parentAccountId = UUID.randomUUID(),
+        response = listOf(
+          SubAccountResponse(
+            id = prisonSubAccountUUID,
+            reference = "2199:HOR",
+            parentAccountId = UUID.randomUUID(),
+            createdBy = "JOHN_USER",
+            createdAt = Instant.now(),
+          ),
+        ),
       )
 
       generalLedgerApi.stubPostTransactionReturnsInternalServerError()
