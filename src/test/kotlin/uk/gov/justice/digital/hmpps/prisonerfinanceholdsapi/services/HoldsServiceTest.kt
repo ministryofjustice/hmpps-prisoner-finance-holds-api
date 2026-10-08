@@ -1,7 +1,6 @@
 package uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.services
 
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -13,7 +12,6 @@ import org.mockito.Mock
 import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
-import org.mockito.kotlin.capture
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.never
 import org.mockito.kotlin.times
@@ -566,7 +564,7 @@ class HoldsServiceTest {
 
       val capturedPageable = pageableCaptor.firstValue
 
-      assertThat(capturedPageable.pageNumber).isEqualTo(pageNumber - 1) // zero indexed
+      assertThat(capturedPageable.pageNumber).isEqualTo(0) // zero indexed
       assertThat(capturedPageable.pageSize).isEqualTo(pageSize)
 
       assertThat(response.content).hasSize(1)
@@ -591,22 +589,16 @@ class HoldsServiceTest {
   @Nested
   inner class ReleaseHolds {
 
-    val releaseDateTime: Instant = Instant.now()
-    val prisonSubAccountUUID: UUID = UUID.randomUUID()
-    val prisonerSubAccountUUID: UUID = UUID.randomUUID()
-    val legacyTransactionId = 12345L
-    val glTransactionUUID: UUID = UUID.randomUUID()
-    val holdUUID: UUID = UUID.randomUUID()
+    val prisonSubAccountId: UUID = UUID.randomUUID()
+    val prisonerSubAccountId: UUID = UUID.randomUUID()
+    val glTransactionId: UUID = UUID.randomUUID()
+    val holdId: UUID = UUID.randomUUID()
     val idempotencyKey: UUID = UUID.randomUUID()
-
-    lateinit var releaseHoldRequest: ReleaseHoldRequest
-    lateinit var releasedHoldEntity: HoldEntity
-
-    lateinit var releaseHoldResponse: ReleasedHoldResponse
-    lateinit var transactionReq: CreateTransactionRequest
+    val releaseDateTime: Instant = Instant.now()
+    val legacyTransactionId = 12345L
 
     val unreleasedHoldEntity = HoldEntity(
-      id = holdUUID,
+      id = holdId,
       prisonNumber = prisonNumber,
       legacyHoldNumber = 1,
       subAccountRef = SubAccountRef.SPENDS,
@@ -624,9 +616,20 @@ class HoldsServiceTest {
       releasedTransactionId = null,
     )
 
+    val releaseHoldRequest = ReleaseHoldRequest(
+      releaseDateTime = releaseDateTime,
+      legacyTransactionId = legacyTransactionId,
+    )
+
+    val releasedHoldEntity = unreleasedHoldEntity.copy(
+      isReleased = true,
+      releasedTransactionId = glTransactionId,
+      releasedAt = releaseHoldRequest.releaseDateTime,
+    )
+
     val prisonerParentAccountId: UUID = UUID.randomUUID()
     val prisonerSubAccountResponse = SubAccountResponse(
-      id = prisonerSubAccountUUID,
+      id = prisonerSubAccountId,
       reference = "SPENDS",
       parentAccountId = prisonerParentAccountId,
       createdBy = "JOHN_USER",
@@ -635,7 +638,7 @@ class HoldsServiceTest {
 
     val prisonParentAccountId: UUID = UUID.randomUUID()
     val prisonSubAccountResponse = SubAccountResponse(
-      id = prisonSubAccountUUID,
+      id = prisonSubAccountId,
       reference = "2199:HOR",
       parentAccountId = prisonParentAccountId,
       createdBy = "JOHN_USER",
@@ -644,6 +647,8 @@ class HoldsServiceTest {
 
     @Test
     fun `should throw a 404 if the prisoner subaccount cannot be found`() {
+      whenever { holdRepository.findHoldEntityById(holdId) }.thenReturn(unreleasedHoldEntity)
+
       whenever {
         generalLedgerApiClient.findSubAccount(
           any(),
@@ -651,10 +656,8 @@ class HoldsServiceTest {
         )
       }.thenReturn(null)
 
-      whenever { holdRepository.findHoldEntityById(holdUUID) }.thenReturn(unreleasedHoldEntity)
-
       val exception = assertThrows<CustomException> {
-        holdsService.releaseHoldById(holdUUID, releaseHoldRequest, idempotencyKey)
+        holdsService.releaseHoldById(holdId, releaseHoldRequest, idempotencyKey)
       }
 
       assertThat(exception.status).isEqualTo(HttpStatus.NOT_FOUND)
@@ -662,6 +665,8 @@ class HoldsServiceTest {
 
     @Test
     fun `should throw a 404 if the prison subaccount cannot be found`() {
+      whenever { holdRepository.findHoldEntityById(holdId) }.thenReturn(unreleasedHoldEntity)
+
       whenever {
         generalLedgerApiClient.findSubAccount(
           any(),
@@ -670,10 +675,8 @@ class HoldsServiceTest {
       }.thenReturn(prisonerSubAccountResponse)
         .thenReturn(null)
 
-      whenever { holdRepository.findHoldEntityById(holdUUID) }.thenReturn(unreleasedHoldEntity)
-
       val exception = assertThrows<CustomException> {
-        holdsService.releaseHoldById(holdUUID, releaseHoldRequest, idempotencyKey)
+        holdsService.releaseHoldById(holdId, releaseHoldRequest, idempotencyKey)
       }
 
       assertThat(exception.status).isEqualTo(HttpStatus.NOT_FOUND)
@@ -684,7 +687,7 @@ class HoldsServiceTest {
     fun `should map prison subaccount`(holdType: HoldType) {
       val testUnreleasedHoldEntity = unreleasedHoldEntity.copy(holdType = holdType)
 
-      whenever { holdRepository.findHoldEntityById(holdUUID) }.thenReturn(testUnreleasedHoldEntity)
+      whenever { holdRepository.findHoldEntityById(holdId) }.thenReturn(testUnreleasedHoldEntity)
 
       whenever {
         generalLedgerApiClient.findSubAccount(
@@ -692,6 +695,13 @@ class HoldsServiceTest {
           unreleasedHoldEntity.subAccountRef.toString(),
         )
       }.thenReturn(prisonerSubAccountResponse)
+
+      whenever {
+        generalLedgerApiClient.postTransaction(
+          any(),
+          any(),
+        )
+      }.thenReturn(UUID.randomUUID())
 
       var expectedHoldType = "2199:WHR"
 
@@ -706,12 +716,12 @@ class HoldsServiceTest {
         )
       }.thenReturn(prisonSubAccountResponse)
 
-      holdsService.releaseHoldById(holdUUID, releaseHoldRequest, idempotencyKey)
+      holdsService.releaseHoldById(holdId, releaseHoldRequest, idempotencyKey)
     }
 
     @Test
     fun `should call create transaction for the release`() {
-      whenever { holdRepository.findHoldEntityById(holdUUID) }.thenReturn(unreleasedHoldEntity)
+      whenever { holdRepository.findHoldEntityById(holdId) }.thenReturn(unreleasedHoldEntity)
 
       whenever {
         generalLedgerApiClient.findSubAccount(
@@ -736,12 +746,12 @@ class HoldsServiceTest {
 
       whenever { holdRepository.save(any<HoldEntity>()) }.thenReturn(releasedHoldEntity)
 
-      holdsService.releaseHoldById(holdUUID, releaseHoldRequest, idempotencyKey)
+      holdsService.releaseHoldById(holdId, releaseHoldRequest, idempotencyKey)
     }
 
     @Test
     fun `should throw exception when create transaction fails and does not save updated entity`() {
-      whenever { holdRepository.findHoldEntityById(holdUUID) }.thenReturn(unreleasedHoldEntity)
+      whenever { holdRepository.findHoldEntityById(holdId) }.thenReturn(unreleasedHoldEntity)
 
       whenever {
         generalLedgerApiClient.findSubAccount(
@@ -767,7 +777,7 @@ class HoldsServiceTest {
       )
 
       val exception = assertThrows<CustomException> {
-        holdsService.releaseHoldById(holdUUID, releaseHoldRequest, idempotencyKey)
+        holdsService.releaseHoldById(holdId, releaseHoldRequest, idempotencyKey)
       }
 
       assertThat(exception.message).contains("Release transaction failed")
@@ -775,89 +785,10 @@ class HoldsServiceTest {
       verify(holdRepository, never()).save(any<HoldEntity>())
     }
 
-    @BeforeEach
-    fun setup() {
-      releaseHoldRequest = ReleaseHoldRequest(
-        releaseDateTime = releaseDateTime,
-        legacyTransactionId = legacyTransactionId,
-      )
-
-      val unreleasedHoldEntity = HoldEntity(
-        id = holdUUID,
-        prisonNumber = prisonNumber,
-        legacyHoldNumber = 1,
-        subAccountRef = SubAccountRef.SPENDS,
-        createdAt = Instant.now(),
-        createdBy = "",
-        holdFromDate = Instant.now(),
-        holdUntilDate = Instant.now().plusSeconds(1),
-        isReleased = false,
-        description = "",
-        holdType = HoldType.HOA,
-        amount = 1,
-        holdLocation = "LEI",
-        releasedAt = null,
-        holdTransactionId = UUID.randomUUID(),
-        releasedTransactionId = null,
-      )
-
-      releasedHoldEntity = unreleasedHoldEntity.copy(
-        isReleased = true,
-        releasedTransactionId = glTransactionUUID,
-        releasedAt = releaseHoldRequest.releaseDateTime,
-      )
-
-      whenever { holdRepository.findHoldEntityById(holdUUID) }.thenReturn(unreleasedHoldEntity)
-
-//      whenever {
-//        generalLedgerApiClient.findSubAccount(
-//          parentReference = unreleasedHoldEntity.prisonNumber,
-//          subAccountReference = prisonerSubAccountResponse.reference,
-//        )
-//      }.thenReturn(prisonerSubAccountResponse)
-//
-//      whenever {
-//        generalLedgerApiClient.findSubAccount(
-//          parentReference = unreleasedHoldEntity.holdLocation,
-//          subAccountReference = "2199:HOR",
-//        )
-//      }.thenReturn(prisonSubAccountResponse)
-
-      /*
-      whenever {
-        generalLedgerApiClient.postTransaction(
-          request = any(),
-          idempotencyKey = any()
-        )
-      }.thenReturn(UUID.randomUUID())*/
-
-      // whenever { holdRepository.save(any<HoldEntity>()) }.thenReturn(releasedHoldEntity)
-
-      // releaseHoldResponse = holdsService.releaseHoldById(holdUUID, releaseHoldRequest, idempotencyKey)
-
-//      transactionReq = transactionReqCaptor.firstValue
-    }
-
-//    @Test
-//    fun `should call GL to create transaction and save to the repository`() {
-//      verify(generalLedgerApiClient, times(1))
-//        .postTransaction(
-//          any(),
-//          eq(idempotencyKey),
-//        )
-//      verify(holdRepository, times(1)).save(any())
-//    }
-
-//    @Test
-//    fun `release hold response is constructed as expected`() {
-//      assertThat(releaseHoldResponse.releasedAt).isEqualTo(releasedHoldEntity.releasedAt)
-//      assertThat(releaseHoldResponse.id).isEqualTo(releasedHoldEntity.id)
-//      assertThat(releaseHoldResponse.amountReleased).isEqualTo(releasedHoldEntity.amount)
-//      assertThat(releaseHoldResponse.releasedTransactionId).isEqualTo(glTransactionUUID)
-//    }
-
     @Test
     fun `sub-account is called for prisoner and prison`() {
+      whenever { holdRepository.findHoldEntityById(holdId) }.thenReturn(unreleasedHoldEntity)
+
       whenever {
         generalLedgerApiClient.findSubAccount(
           parentReference = unreleasedHoldEntity.prisonNumber,
@@ -872,15 +803,24 @@ class HoldsServiceTest {
         )
       }.thenReturn(prisonSubAccountResponse)
 
+      whenever {
+        generalLedgerApiClient.postTransaction(
+          any(),
+          any(),
+        )
+      }.thenReturn(UUID.randomUUID())
+
       whenever { holdRepository.save(any<HoldEntity>()) }.thenReturn(releasedHoldEntity)
 
-      releaseHoldResponse = holdsService.releaseHoldById(holdUUID, releaseHoldRequest, idempotencyKey)
+      holdsService.releaseHoldById(holdId, releaseHoldRequest, idempotencyKey)
 
       verify(generalLedgerApiClient, times(2)).findSubAccount(any(), any())
     }
 
     @Test
     fun `transaction request is constructed as expected`() {
+      whenever { holdRepository.findHoldEntityById(holdId) }.thenReturn(unreleasedHoldEntity)
+
       whenever {
         generalLedgerApiClient.findSubAccount(
           parentReference = unreleasedHoldEntity.prisonNumber,
@@ -930,7 +870,7 @@ class HoldsServiceTest {
 
       whenever { holdRepository.save(any<HoldEntity>()) }.thenReturn(releasedHoldEntity)
 
-      releaseHoldResponse = holdsService.releaseHoldById(holdUUID, releaseHoldRequest, idempotencyKey)
+      holdsService.releaseHoldById(holdId, releaseHoldRequest, idempotencyKey)
 
       val postingTransaction = postTransactionCaptor.firstValue
       val idempotency = idempotencyCaptor.firstValue
@@ -939,17 +879,63 @@ class HoldsServiceTest {
       assertThat(idempotency).isEqualTo(idempotencyKey)
     }
 
-//    @Test
-//    fun `transaction requests postings are constructed as expected`() {
-//      val debitPosting = transactionReq.postings.first { it.type == CreatePostingRequest.Type.DR }
-//      assertThat(debitPosting.subAccountId).isEqualTo(prisonSubAccountUUID)
-//      assertThat(debitPosting.entrySequence).isEqualTo(1)
-//      assertThat(debitPosting.amount).isEqualTo(releasedHoldEntity.amount)
-//
-//      val creditPosting = transactionReq.postings.first { it.type == CreatePostingRequest.Type.CR }
-//      assertThat(creditPosting.subAccountId).isEqualTo(prisonerSubAccountUUID)
-//      assertThat(creditPosting.entrySequence).isEqualTo(2)
-//      assertThat(creditPosting.amount).isEqualTo(releasedHoldEntity.amount)
-//    }
+    @Test
+    fun `response from release hold is constructed as expected`() {
+      whenever { holdRepository.findHoldEntityById(holdId) }.thenReturn(unreleasedHoldEntity)
+
+      whenever {
+        generalLedgerApiClient.findSubAccount(
+          parentReference = unreleasedHoldEntity.prisonNumber,
+          subAccountReference = prisonerSubAccountResponse.reference,
+        )
+      }.thenReturn(prisonerSubAccountResponse)
+
+      whenever {
+        generalLedgerApiClient.findSubAccount(
+          parentReference = unreleasedHoldEntity.holdLocation,
+          subAccountReference = "2199:HOR",
+        )
+      }.thenReturn(prisonSubAccountResponse)
+
+      whenever {
+        generalLedgerApiClient.postTransaction(
+          request = any(),
+          idempotencyKey = any(),
+        )
+      }.thenReturn(glTransactionId)
+
+      whenever { holdRepository.save(any<HoldEntity>()) }.thenReturn(releasedHoldEntity)
+
+      val actualReleaseHoldResponse = holdsService.releaseHoldById(holdId, releaseHoldRequest, idempotencyKey)
+
+      val expectedReleasedHoldResponse = ReleasedHoldResponse(
+        id = releasedHoldEntity.id,
+        prisonNumber = releasedHoldEntity.prisonNumber,
+        subAccountRef = releasedHoldEntity.subAccountRef,
+        amountReleased = releasedHoldEntity.amount,
+        releasedAt = releaseHoldRequest.releaseDateTime,
+        releasedTransactionId = glTransactionId,
+      )
+
+      assertThat(actualReleaseHoldResponse).isEqualTo(expectedReleasedHoldResponse)
+    }
+
+    @Test
+    fun `should return existing hold is already released`() {
+      whenever { holdRepository.findHoldEntityById(holdId) }.thenReturn(releasedHoldEntity)
+
+      val actualReleaseHoldResponse = holdsService.releaseHoldById(holdId, releaseHoldRequest, idempotencyKey)
+
+      val expectedReleasedHoldResponse = ReleasedHoldResponse(
+        id = releasedHoldEntity.id,
+        prisonNumber = releasedHoldEntity.prisonNumber,
+        subAccountRef = releasedHoldEntity.subAccountRef,
+        amountReleased = releasedHoldEntity.amount,
+        releasedAt = releaseHoldRequest.releaseDateTime,
+        releasedTransactionId = releasedHoldEntity.releasedTransactionId!!,
+      )
+
+      assertThat(actualReleaseHoldResponse).isEqualTo(expectedReleasedHoldResponse)
+    }
   }
 }

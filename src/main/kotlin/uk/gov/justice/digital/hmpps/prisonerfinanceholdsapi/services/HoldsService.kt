@@ -149,11 +149,6 @@ class HoldsService(
       ?: throw CustomException(status = HttpStatus.NOT_FOUND, message = "Hold not found")
 
     if (!holdToRelease.isReleased) {
-      holdToRelease.isReleased = true
-      holdToRelease.releasedAt = releaseHoldRequest.releaseDateTime
-
-//      // Here we need to figure out the prison subaccount ID, prisoner subaccount ID
-//
       val prisonerSubAccount = generalLedgerApiClient.findSubAccount(
         parentReference = holdToRelease.prisonNumber,
         subAccountReference = holdToRelease.subAccountRef.toString(),
@@ -198,11 +193,15 @@ class HoldsService(
           ),
           idempotencyKey = idempotencyKey,
         )
+
+        holdToRelease.releasedTransactionId = releaseTransactionId
       } catch (e: Exception) {
         throw CustomException(status = HttpStatus.BAD_REQUEST, message = "Release transaction failed")
       }
 
-//      holdToRelease.releasedTransactionId = releaseTransactionId
+      holdToRelease.isReleased = true
+      holdToRelease.releasedAt = releaseHoldRequest.releaseDateTime
+
       holdRepository.save(holdToRelease)
     }
 
@@ -212,7 +211,7 @@ class HoldsService(
       subAccountRef = holdToRelease.subAccountRef,
       amountReleased = holdToRelease.amount,
       releasedAt = holdToRelease.releasedAt!!,
-//      releasedTransactionId = holdToRelease.releasedTransactionId!!,
+      releasedTransactionId = holdToRelease.releasedTransactionId!!,
     )
   }
 
