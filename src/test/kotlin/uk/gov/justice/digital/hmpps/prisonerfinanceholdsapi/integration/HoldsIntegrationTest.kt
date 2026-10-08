@@ -273,6 +273,8 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         amount = 1000L,
         holdLocation = "LEI",
         holdLegacyTransactionId = 1234,
+        prisonerSubAccountId = UUID.randomUUID(),
+        prisonSubAccountId = UUID.randomUUID(),
       )
 
       webTestClient.post().uri("/holds")
@@ -299,8 +301,9 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         holdType = HoldType.HOA,
         amount = 1000L,
         holdLocation = "LEI",
-
         holdLegacyTransactionId = 1234,
+        prisonerSubAccountId = UUID.randomUUID(),
+        prisonSubAccountId = UUID.randomUUID(),
       )
 
       webTestClient.post().uri("/holds")
@@ -385,8 +388,9 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         amount = 1000L,
         holdLocation = "LEI",
         holdLegacyTransactionId = 123L,
-
         releaseLegacyTransactionId = null,
+        prisonerSubAccountId = UUID.randomUUID(),
+        prisonSubAccountId = UUID.randomUUID(),
       )
 
       webTestClient.post().uri("/holds")
