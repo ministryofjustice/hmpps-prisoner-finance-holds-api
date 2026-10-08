@@ -66,11 +66,4 @@ data class HoldEntity(
 
   @Column(name = "release_transaction_id", nullable = true)
   var releasedTransactionId: UUID? = null,
-
-  // These have been set to nullable as we have data in preprod, ideally they would not be nullable
-  @Column(name = "prisoner_subaccount_uuid", nullable = true)
-  var prisonerSubAccountId: UUID? = null,
-
-  @Column(name = "prison_subaccount_uuid", nullable = true)
-  var prisonSubAccountId: UUID? = null,
 )
