@@ -65,7 +65,7 @@ class GeneralLedgerApiMockServer : WireMockServer(WIREMOCK_PORT) {
   fun stubPostTransaction(
     creditorSubAccountUuid: String? = null,
     debtorSubAccountUuid: String? = null,
-    reference: String? = null,
+    reference: String? = "",
     returnUUID: UUID = UUID.randomUUID(),
     postings: List<PostingResponse> = emptyList(),
     amount: Long = 1000,

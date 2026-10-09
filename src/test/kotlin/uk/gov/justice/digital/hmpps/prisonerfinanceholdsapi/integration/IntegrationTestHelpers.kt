@@ -6,17 +6,12 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.http.HttpHeaders
 import org.springframework.test.web.reactive.server.WebTestClient
-import org.springframework.test.web.reactive.server.expectBody
 import org.springframework.transaction.annotation.Transactional
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.HoldRepository
-import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.ROLE_PRISONER_FINANCE__HOLDS__RW
-import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.integration.IntegrationTestBase.Companion.setIdempotencyKey
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.integration.wiremock.GeneralLedgerApiExtension
-import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.integration.wiremock.GeneralLedgerApiExtension.Companion.generalLedgerApi
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.entities.HoldEntity
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.HoldType
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.SubAccountRef
-import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldResponse
 import uk.gov.justice.hmpps.test.kotlin.auth.JwtAuthorisationHelper
 import java.time.Instant
@@ -50,11 +45,9 @@ class IntegrationTestHelpers(
     holdFromDate: Instant,
     holdUntilDate: Instant,
     isReleased: Boolean,
+    holdType: HoldType = HoldType.HOA,
   ): HoldResponse {
-    val prisonSubaccountUUID = UUID.randomUUID()
-    val prisonerSubaccountUUID = UUID.randomUUID()
-
-    val createHoldRequest1 = CreateHoldRequest(
+    val holdEntity = HoldEntity(
       prisonNumber = prisonNumber,
       legacyHoldNumber = holdNumber,
       subAccountRef = subAccountRef,
@@ -64,31 +57,16 @@ class IntegrationTestHelpers(
       holdUntilDate = holdUntilDate,
       isReleased = isReleased,
       description = "Damages to cell",
-      holdType = HoldType.HOA,
+      holdType = holdType,
       amount = amount,
       holdLocation = "LEI",
-      holdLegacyTransactionId = 123L,
-      prisonerSubAccountId = prisonerSubaccountUUID,
-      prisonSubAccountId = prisonSubaccountUUID,
-      releaseLegacyTransactionId = null,
+      releasedAt = if (isReleased) Instant.now() else null,
+      holdTransactionId = UUID.randomUUID(),
+      releasedTransactionId = if (isReleased) UUID.randomUUID() else null,
     )
 
-    generalLedgerApi.stubPostTransaction(
-      amount = amount,
-      creditorSubAccountUuid = prisonSubaccountUUID.toString(),
-      debtorSubAccountUuid = prisonerSubaccountUUID.toString(),
-    )
-
-    return webTestClient.post().uri("/holds")
-      .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
-      .headers(setIdempotencyKey(UUID.randomUUID()))
-      .bodyValue(createHoldRequest1)
-      .exchange()
-      .expectStatus()
-      .isCreated
-      .expectBody<HoldResponse>()
-      .returnResult()
-      .responseBody!!
+    holdsRepository.save(holdEntity)
+    return HoldResponse.fromEntity(holdEntity)
   }
 
   @Autowired
