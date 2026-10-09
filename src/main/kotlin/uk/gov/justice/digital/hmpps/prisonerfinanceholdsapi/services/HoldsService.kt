@@ -144,62 +144,66 @@ class HoldsService(
     val holdToRelease = holdRepository.findHoldEntityById(holdId)
       ?: throw CustomException(status = HttpStatus.NOT_FOUND, message = "Hold not found")
 
-    if (!holdToRelease.isReleased) {
-      val prisonerSubAccount = generalLedgerApiClient.findSubAccount(
-        parentReference = holdToRelease.prisonNumber,
-        subAccountReference = holdToRelease.subAccountRef.toString(),
+    if (holdToRelease.isReleased) {
+      return ReleasedHoldResponse(
+        id = holdId,
+        prisonNumber = holdToRelease.prisonNumber,
+        subAccountRef = holdToRelease.subAccountRef,
+        amountReleased = holdToRelease.amount,
+        releasedAt = holdToRelease.releasedAt!!,
+        releasedTransactionId = holdToRelease.releasedTransactionId!!,
       )
+    }
+    val prisonerSubAccount = generalLedgerApiClient.findSubAccount(
+      parentReference = holdToRelease.prisonNumber,
+      subAccountReference = holdToRelease.subAccountRef.toString(),
+    )
 
-      if (prisonerSubAccount == null) {
-        throw CustomException(status = HttpStatus.NOT_FOUND, message = "Prisoner subaccount not found")
-      }
+    if (prisonerSubAccount == null) {
+      throw CustomException(status = HttpStatus.NOT_FOUND, message = "Prisoner subaccount not found")
+    }
 
-      val prisonSubAccount = generalLedgerApiClient.findSubAccount(
-        parentReference = holdToRelease.holdLocation,
-        subAccountReference = "${HOLD_ACCOUNT_CODE}:${holdToRelease.holdType.getReleaseType()}",
-      )
+    val prisonSubAccount = generalLedgerApiClient.findSubAccount(
+      parentReference = holdToRelease.holdLocation,
+      subAccountReference = "${HOLD_ACCOUNT_CODE}:${holdToRelease.holdType.getReleaseType()}",
+    )
 
-      if (prisonSubAccount == null) {
-        throw CustomException(status = HttpStatus.NOT_FOUND, message = "Prison subaccount not found")
-      }
+    if (prisonSubAccount == null) {
+      throw CustomException(status = HttpStatus.NOT_FOUND, message = "Prison subaccount not found")
+    }
 
-      try {
-        val releaseTransactionId = generalLedgerApiClient.postTransaction(
-          request = CreateTransactionRequest(
-            reference = "",
-            description = "Remove Hold",
-            timestamp = releaseHoldRequest.releaseDateTime,
+    val releaseTransactionId = generalLedgerApiClient.postTransaction(
+      request = CreateTransactionRequest(
+        reference = "",
+        description = "Remove Hold",
+        timestamp = releaseHoldRequest.releaseDateTime,
+        amount = holdToRelease.amount,
+        entrySequence = 1,
+        postings = listOf(
+          CreatePostingRequest(
+            subAccountId = prisonerSubAccount.id,
+            type = CreatePostingRequest.Type.CR,
             amount = holdToRelease.amount,
             entrySequence = 1,
-            postings = listOf(
-              CreatePostingRequest(
-                subAccountId = prisonerSubAccount.id,
-                type = CreatePostingRequest.Type.CR,
-                amount = holdToRelease.amount,
-                entrySequence = 1,
-              ),
-              CreatePostingRequest(
-                subAccountId = prisonSubAccount.id,
-                type = CreatePostingRequest.Type.DR,
-                amount = holdToRelease.amount,
-                entrySequence = 2,
-              ),
-            ),
-            legacyTransactionId = releaseHoldRequest.legacyTransactionId,
           ),
-          idempotencyKey = idempotencyKey,
-        )
+          CreatePostingRequest(
+            subAccountId = prisonSubAccount.id,
+            type = CreatePostingRequest.Type.DR,
+            amount = holdToRelease.amount,
+            entrySequence = 2,
+          ),
+        ),
+        legacyTransactionId = releaseHoldRequest.legacyTransactionId,
+      ),
+      idempotencyKey = idempotencyKey,
+    )
 
-        holdToRelease.releasedTransactionId = releaseTransactionId
-      } catch (e: Exception) {
-        throw CustomException(status = HttpStatus.BAD_GATEWAY, message = "Release transaction failed")
-      }
+    holdToRelease.releasedTransactionId = releaseTransactionId
 
-      holdToRelease.isReleased = true
-      holdToRelease.releasedAt = releaseHoldRequest.releaseDateTime
+    holdToRelease.isReleased = true
+    holdToRelease.releasedAt = releaseHoldRequest.releaseDateTime
 
-      holdRepository.save(holdToRelease)
-    }
+    holdRepository.save(holdToRelease)
 
     return ReleasedHoldResponse(
       id = holdId,

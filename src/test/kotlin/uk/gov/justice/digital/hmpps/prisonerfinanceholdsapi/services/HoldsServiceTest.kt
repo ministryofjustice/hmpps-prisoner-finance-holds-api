@@ -675,11 +675,7 @@ class HoldsServiceTest {
         )
       }.thenReturn(UUID.randomUUID())
 
-      var expectedHoldType = "2199:WHR"
-
-      if (holdType == HoldType.HOA) {
-        expectedHoldType = "2199:HOR"
-      }
+      val expectedHoldType = "2199:${holdType.getReleaseType()}"
 
       whenever {
         generalLedgerApiClient.findSubAccount(
@@ -748,11 +744,11 @@ class HoldsServiceTest {
         IllegalStateException("GL API returned null body for transaction"),
       )
 
-      val exception = assertThrows<CustomException> {
+      val exception = assertThrows<Exception> {
         holdsService.releaseHoldById(holdId, releaseHoldRequest, idempotencyKey)
       }
 
-      assertThat(exception.message).contains("Release transaction failed")
+      assertThat(exception.message).contains("GL API returned null body for transaction")
 
       verify(holdRepository, never()).save(any<HoldEntity>())
     }
@@ -893,7 +889,7 @@ class HoldsServiceTest {
     }
 
     @Test
-    fun `should return existing hold is already released`() {
+    fun `should return existing hold if already released`() {
       whenever { holdRepository.findHoldEntityById(holdId) }.thenReturn(releasedHoldEntity)
 
       val actualReleaseHoldResponse = holdsService.releaseHoldById(holdId, releaseHoldRequest, idempotencyKey)
@@ -908,6 +904,7 @@ class HoldsServiceTest {
       )
 
       assertThat(actualReleaseHoldResponse).isEqualTo(expectedReleasedHoldResponse)
+      verify(generalLedgerApiClient, never()).postTransaction(any(), any())
     }
   }
 }
