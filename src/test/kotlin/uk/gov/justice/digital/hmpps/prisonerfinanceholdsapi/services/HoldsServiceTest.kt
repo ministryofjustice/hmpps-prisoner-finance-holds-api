@@ -119,9 +119,7 @@ class HoldsServiceTest {
         )
       }.thenReturn(transactionGLId)
 
-      val holdEntityCaptor = argumentCaptor<HoldEntity>()
-
-      whenever { holdRepository.save(holdEntityCaptor.capture()) }.thenReturn(holdEntity)
+      whenever { holdRepository.save(any<HoldEntity>()) }.thenReturn(holdEntity)
 
       holdsService.createHold(createHoldRequest, idempotencyKey)
 
@@ -278,9 +276,7 @@ class HoldsServiceTest {
         createdAt = migrationRequest.createdAt,
       )
 
-      val holdEntityCaptor = argumentCaptor<HoldEntity>()
-
-      whenever { holdRepository.save(holdEntityCaptor.capture()) }.thenReturn(holdEntity)
+      whenever { holdRepository.save(any<HoldEntity>()) }.thenReturn(holdEntity)
 
       holdsService.migrateHold(migrationRequest)
 

@@ -921,13 +921,6 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         legacyTransactionId = legacyTransactionId,
       )
 
-      generalLedgerApi.stubPostTransaction(
-        creditorSubAccountUuid = prisonerSubAccountUUID.toString(),
-        debtorSubAccountUuid = prisonSubAccountUUID.toString(),
-        returnUUID = releasedTransactionId,
-        amount = amount,
-        legacyTransactionId = legacyTransactionId.toString(),
-      )
       webTestClient.post().uri("/holds/${createdHold.id}/release")
         .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
         .bodyValue(releaseRequest)
