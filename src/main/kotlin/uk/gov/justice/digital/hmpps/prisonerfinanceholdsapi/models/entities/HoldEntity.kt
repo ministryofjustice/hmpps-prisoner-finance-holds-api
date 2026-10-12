@@ -61,9 +61,9 @@ data class HoldEntity(
   @Column(name = "released_at", nullable = true)
   var releasedAt: Instant? = null,
 
-  @Column(name = "HOLD_TRANSACTION_ID", nullable = true)
+  @Column(name = "hold_transaction_id", nullable = true)
   var holdTransactionId: UUID? = null,
 
-  @Column(name = "RELEASE_TRANSACTION_ID", nullable = true)
+  @Column(name = "release_transaction_id", nullable = true)
   var releasedTransactionId: UUID? = null,
 )
