@@ -33,6 +33,11 @@ generic-service:
     enabled: true
     timeout: 3590
     namespace_secrets:
+      holds-rds-postgresql-instance-output:
+        DB_SERVER: "rds_instance_endpoint"
+        DB_NAME: "database_name"
+        DB_USER: "database_username"
+        DB_PASS: "database_password"
       holds-rds-postgresql-instance-output-preprod:
         DB_NAME_PREPROD: "database_name"
         DB_USER_PREPROD: "database_username"
