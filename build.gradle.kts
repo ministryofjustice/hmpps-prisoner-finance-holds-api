@@ -9,7 +9,7 @@ import java.nio.file.Files
 
 plugins {
   id("uk.gov.justice.hmpps.gradle-spring-boot") version "11.0.12"
-  kotlin("plugin.spring") version "2.4.20"
+  kotlin("plugin.spring") version "2.4.21"
   id("org.jetbrains.kotlin.plugin.noarg") version "2.4.20"
   id("jacoco")
   kotlin("plugin.jpa") version "2.4.20"
