@@ -13,7 +13,7 @@ plugins {
   id("org.jetbrains.kotlin.plugin.noarg") version "2.4.20"
   id("jacoco")
   kotlin("plugin.jpa") version "2.4.20"
-  id("org.openapi.generator") version "7.25.0"
+  id("org.openapi.generator") version "7.26.0"
 }
 
 configure<JacocoPluginExtension> {
