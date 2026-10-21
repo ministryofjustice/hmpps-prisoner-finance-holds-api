@@ -96,8 +96,6 @@ class HoldsServiceTest {
       holdType = HoldType.HOA,
       amount = 100,
       holdLocation = "LEI",
-      prisonSubAccountId = prisonHoldAccountUUID,
-      prisonerSubAccountId = prisonerCashAccountUUID,
     )
 
     val holdEntity = createHoldEntity(
@@ -117,6 +115,14 @@ class HoldsServiceTest {
       createdAt = Instant.now(),
     )
 
+    val prisonSubaccountResponse = SubAccountResponse(
+      id = prisonHoldAccountUUID,
+      reference = "2199:${createHoldRequest.holdType}",
+      parentAccountId = UUID.randomUUID(),
+      createdBy = "",
+      createdAt = Instant.now(),
+    )
+
     private fun mockSubaccountResolution() {
       whenever {
         generalLedgerApiClient.findSubAccount(
@@ -128,9 +134,9 @@ class HoldsServiceTest {
       whenever {
         generalLedgerApiClient.findSubAccount(
           parentReference = createHoldRequest.holdLocation,
-          subAccountReference = "2199:${createHoldRequest.holdType}",
+          subAccountReference = prisonSubaccountResponse.reference,
         )
-      }.thenReturn(prisonerSubaccountResponse)
+      }.thenReturn(prisonSubaccountResponse)
     }
 
     @Test

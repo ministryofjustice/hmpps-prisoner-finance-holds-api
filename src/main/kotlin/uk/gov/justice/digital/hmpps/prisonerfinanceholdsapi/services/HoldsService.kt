@@ -31,7 +31,12 @@ class HoldsService(
   val generalLedgerApiClient: GeneralLedgerApiClient,
 ) {
 
-  private fun saveHoldTransactionToGL(createHoldRequest: CreateHoldRequest, idempotencyKey: UUID): UUID {
+  private fun saveHoldTransactionToGL(
+    createHoldRequest: CreateHoldRequest,
+    idempotencyKey: UUID,
+    prisonSubaccountId: UUID,
+    prisonerSubaccountId: UUID,
+  ): UUID {
     val transactionReq = CreateTransactionRequest(
       reference = "", // not set for holds
       description = createHoldRequest.description ?: "",
@@ -41,13 +46,13 @@ class HoldsService(
       postings = listOf(
         CreatePostingRequest(
           type = CreatePostingRequest.Type.DR,
-          subAccountId = createHoldRequest.prisonerSubAccountId,
+          subAccountId = prisonerSubaccountId,
           amount = createHoldRequest.amount,
           entrySequence = 1,
         ),
         CreatePostingRequest(
           type = CreatePostingRequest.Type.CR,
-          subAccountId = createHoldRequest.prisonSubAccountId,
+          subAccountId = prisonSubaccountId,
           amount = createHoldRequest.amount,
           entrySequence = 2,
         ),
@@ -121,7 +126,12 @@ class HoldsService(
       throw CustomException("Prison subaccount not found", HttpStatus.NOT_FOUND)
     }
 
-    val transactionGLId = saveHoldTransactionToGL(createHoldRequest, idempotencyKey)
+    val transactionGLId = saveHoldTransactionToGL(
+      createHoldRequest = createHoldRequest,
+      idempotencyKey = idempotencyKey,
+      prisonSubaccountId = prisonSubaccount.id,
+      prisonerSubaccountId = prisonerSubaccount.id,
+    )
 
     val newHold = HoldEntity(
       id = UUID.randomUUID(),

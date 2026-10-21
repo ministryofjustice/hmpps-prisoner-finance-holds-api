@@ -58,11 +58,44 @@ class HoldsIntegrationTest : IntegrationTestBase() {
     val idempotencyKey = UUID.randomUUID()
     val prisonerSubAccountId = UUID.randomUUID()
     val prisonSubAccountId = UUID.randomUUID()
+    val prisonSubAccountRef = "2199:HOA"
+
+    @BeforeEach
+    fun setupMocks() {
+      generalLedgerApi.stubGetSubAccount(
+        parentReference = "LEI",
+        subAccountReference = prisonSubAccountRef,
+        parentAccountId = UUID.randomUUID(),
+        response = listOf(
+          SubAccountResponse(
+            id = prisonSubAccountId,
+            reference = prisonSubAccountRef,
+            parentAccountId = UUID.randomUUID(),
+            createdBy = "",
+            createdAt = Instant.now(),
+          ),
+        ),
+      )
+      generalLedgerApi.stubGetSubAccount(
+        parentReference = prisonNumber,
+        subAccountReference = "CASH",
+        parentAccountId = UUID.randomUUID(),
+        response = listOf(
+          SubAccountResponse(
+            id = prisonerSubAccountId,
+            reference = "CASH",
+            parentAccountId = UUID.randomUUID(),
+            createdBy = "",
+            createdAt = Instant.now(),
+          ),
+        ),
+      )
+    }
 
     @Test
     fun `should create a hold and return 201 created with the created hold`() {
       val createHoldRequest = CreateHoldRequest(
-        prisonNumber = "A12345BC",
+        prisonNumber = prisonNumber,
         legacyHoldNumber = 12345678,
         subAccountRef = SubAccountRef.CASH,
         createdAt = Instant.now(),
@@ -75,8 +108,6 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         amount = 1000L,
         holdLocation = "LEI",
         holdLegacyTransactionId = 123L,
-        prisonerSubAccountId = prisonerSubAccountId,
-        prisonSubAccountId = prisonSubAccountId,
         releaseLegacyTransactionId = null,
       )
 
@@ -118,7 +149,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
       val amount = 1000L
 
       val createHoldRequest = CreateHoldRequest(
-        prisonNumber = "A12345BC",
+        prisonNumber = prisonNumber,
         legacyHoldNumber = legacyHoldNumber,
         subAccountRef = SubAccountRef.CASH,
         createdAt = Instant.now().truncatedTo(ChronoUnit.MILLIS),
@@ -131,8 +162,6 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         amount = amount,
         holdLocation = "LEI",
         holdLegacyTransactionId = 123L,
-        prisonerSubAccountId = prisonerSubAccountId,
-        prisonSubAccountId = prisonSubAccountId,
         releaseLegacyTransactionId = null,
       )
 
@@ -169,7 +198,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
     @Test
     fun `should return 502 if GL responds with an error and not save the hold`() {
       val createHoldRequest = CreateHoldRequest(
-        prisonNumber = "A12345BC",
+        prisonNumber = prisonNumber,
         legacyHoldNumber = 12345678,
         subAccountRef = SubAccountRef.CASH,
         createdAt = Instant.now(),
@@ -182,8 +211,6 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         amount = 1000L,
         holdLocation = "LEI",
         holdLegacyTransactionId = 123L,
-        prisonerSubAccountId = prisonerSubAccountId,
-        prisonSubAccountId = prisonSubAccountId,
         releaseLegacyTransactionId = null,
       )
 
@@ -242,8 +269,6 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         holdType = HoldType.HOA,
         amount = 1000L,
         holdLocation = "LEI",
-        prisonerSubAccountId = UUID.randomUUID(),
-        prisonSubAccountId = UUID.randomUUID(),
         holdLegacyTransactionId = null, // null legacy transaction ID
       )
 
@@ -273,8 +298,6 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         amount = 1000L,
         holdLocation = "LEI",
         holdLegacyTransactionId = 1234,
-        prisonerSubAccountId = UUID.randomUUID(),
-        prisonSubAccountId = UUID.randomUUID(),
       )
 
       webTestClient.post().uri("/holds")
@@ -302,8 +325,6 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         amount = 1000L,
         holdLocation = "LEI",
         holdLegacyTransactionId = 1234,
-        prisonerSubAccountId = UUID.randomUUID(),
-        prisonSubAccountId = UUID.randomUUID(),
       )
 
       webTestClient.post().uri("/holds")
@@ -389,8 +410,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         holdLocation = "LEI",
         holdLegacyTransactionId = 123L,
         releaseLegacyTransactionId = null,
-        prisonerSubAccountId = UUID.randomUUID(),
-        prisonSubAccountId = UUID.randomUUID(),
+
       )
 
       webTestClient.post().uri("/holds")
