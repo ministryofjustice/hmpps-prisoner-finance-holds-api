@@ -83,33 +83,126 @@ class HoldsServiceTest {
     val prisonerCashAccountUUID = UUID.randomUUID()
     val prisonHoldAccountUUID = UUID.randomUUID()
 
+    val createHoldRequest = CreateHoldRequest(
+      prisonNumber = prisonNumber,
+      legacyHoldNumber = 1234,
+      subAccountRef = SubAccountRef.CASH,
+      createdAt = Instant.now(),
+      createdBy = "TEST",
+      holdFromDate = Instant.now(),
+      holdUntilDate = Instant.now().plusSeconds(1),
+      isReleased = false,
+      description = "",
+      holdType = HoldType.HOA,
+      amount = 100,
+      holdLocation = "LEI",
+      prisonSubAccountId = prisonHoldAccountUUID,
+      prisonerSubAccountId = prisonerCashAccountUUID,
+    )
+
+    val holdEntity = createHoldEntity(
+      prisonNumber = createHoldRequest.prisonNumber,
+      holdNumber = createHoldRequest.legacyHoldNumber,
+      subAccountRef = createHoldRequest.subAccountRef,
+      isReleased = createHoldRequest.isReleased,
+      amount = createHoldRequest.amount,
+      createdAt = createHoldRequest.createdAt,
+    )
+
+    val prisonerSubaccountResponse = SubAccountResponse(
+      id = prisonerCashAccountUUID,
+      reference = createHoldRequest.subAccountRef.toString(),
+      parentAccountId = UUID.randomUUID(),
+      createdBy = "",
+      createdAt = Instant.now(),
+    )
+
+    private fun mockSubaccountResolution() {
+      whenever {
+        generalLedgerApiClient.findSubAccount(
+          parentReference = createHoldRequest.prisonNumber,
+          subAccountReference = createHoldRequest.subAccountRef.toString(),
+        )
+      }.thenReturn(prisonerSubaccountResponse)
+
+      whenever {
+        generalLedgerApiClient.findSubAccount(
+          parentReference = createHoldRequest.holdLocation,
+          subAccountReference = "2199:${createHoldRequest.holdType}",
+        )
+      }.thenReturn(prisonerSubaccountResponse)
+    }
+
+    @Test
+    fun `should call GL service to find prisoner subaccount`() {
+      mockSubaccountResolution()
+
+      whenever { holdRepository.save(any<HoldEntity>()) }.thenReturn(holdEntity)
+
+      holdsService.createHold(createHoldRequest, idempotencyKey)
+
+      verify(generalLedgerApiClient, times(1)).findSubAccount(
+        parentReference = createHoldRequest.prisonNumber,
+        subAccountReference = createHoldRequest.subAccountRef.toString(),
+      )
+    }
+
+    @Test
+    fun `should throw 404 if prisoner subaccount not found`() {
+      whenever {
+        generalLedgerApiClient.findSubAccount(
+          parentReference = createHoldRequest.prisonNumber,
+          subAccountReference = createHoldRequest.subAccountRef.toString(),
+        )
+      }.thenReturn(null)
+
+      val exception = assertThrows<CustomException> {
+        holdsService.createHold(createHoldRequest, idempotencyKey)
+      }
+      assertThat(exception.status).isEqualTo(HttpStatus.NOT_FOUND)
+    }
+
+    @Test
+    fun `should call GL service to find prison subaccount`() {
+      mockSubaccountResolution()
+
+      whenever { holdRepository.save(any<HoldEntity>()) }.thenReturn(holdEntity)
+
+      holdsService.createHold(createHoldRequest, idempotencyKey)
+
+      verify(generalLedgerApiClient, times(1)).findSubAccount(
+        parentReference = createHoldRequest.holdLocation,
+        subAccountReference = "2199:${createHoldRequest.holdType}",
+      )
+    }
+
+    @Test
+    fun `should throw 404 if prison subaccount not found`() {
+      whenever {
+        generalLedgerApiClient.findSubAccount(
+          parentReference = createHoldRequest.prisonNumber,
+          subAccountReference = createHoldRequest.subAccountRef.toString(),
+        )
+      }.thenReturn(prisonerSubaccountResponse)
+
+      whenever {
+        generalLedgerApiClient.findSubAccount(
+          parentReference = createHoldRequest.holdLocation,
+          subAccountReference = "2199:${createHoldRequest.holdType}",
+        )
+      }.thenReturn(null)
+
+      val exception = assertThrows<CustomException> {
+        holdsService.createHold(createHoldRequest, idempotencyKey)
+      }
+      assertThat(exception.status).isEqualTo(HttpStatus.NOT_FOUND)
+    }
+
     @Test
     fun `should call GL service to create the transaction and create hold`() {
-      val createHoldRequest = CreateHoldRequest(
-        prisonNumber = prisonNumber,
-        legacyHoldNumber = 1234,
-        subAccountRef = SubAccountRef.CASH,
-        createdAt = Instant.now(),
-        createdBy = "TEST",
-        holdFromDate = Instant.now(),
-        holdUntilDate = Instant.now().plusSeconds(1),
-        isReleased = false,
-        description = "",
-        holdType = HoldType.HOA,
-        amount = 100,
-        holdLocation = "LEI",
-        prisonSubAccountId = prisonHoldAccountUUID,
-        prisonerSubAccountId = prisonerCashAccountUUID,
-      )
+      whenever { holdRepository.save(any<HoldEntity>()) }.thenReturn(holdEntity)
 
-      val holdEntity = createHoldEntity(
-        prisonNumber = createHoldRequest.prisonNumber,
-        holdNumber = createHoldRequest.legacyHoldNumber,
-        subAccountRef = createHoldRequest.subAccountRef,
-        isReleased = createHoldRequest.isReleased,
-        amount = createHoldRequest.amount,
-        createdAt = createHoldRequest.createdAt,
-      )
+      mockSubaccountResolution()
 
       val transactionReqCaptor = argumentCaptor<CreateTransactionRequest>()
       whenever {
@@ -118,8 +211,6 @@ class HoldsServiceTest {
           any(),
         )
       }.thenReturn(transactionGLId)
-
-      whenever { holdRepository.save(any<HoldEntity>()) }.thenReturn(holdEntity)
 
       holdsService.createHold(createHoldRequest, idempotencyKey)
 
@@ -152,33 +243,6 @@ class HoldsServiceTest {
 
     @Test
     fun `should not call general ledger when the hold already exists`() {
-      val createHoldRequest = CreateHoldRequest(
-        prisonNumber = prisonNumber,
-        legacyHoldNumber = 1234,
-        subAccountRef = SubAccountRef.CASH,
-        createdAt = Instant.now(),
-        createdBy = "TEST",
-        holdFromDate = Instant.now(),
-        holdUntilDate = Instant.now().plusSeconds(1),
-        isReleased = false,
-        description = "",
-        holdType = HoldType.HOA,
-        amount = 100,
-        holdLocation = "LEI",
-        prisonSubAccountId = prisonHoldAccountUUID,
-        prisonerSubAccountId = prisonerCashAccountUUID,
-      )
-
-      val holdEntity = createHoldEntity(
-        prisonNumber = createHoldRequest.prisonNumber,
-        holdNumber = createHoldRequest.legacyHoldNumber,
-        subAccountRef = createHoldRequest.subAccountRef,
-        isReleased = createHoldRequest.isReleased,
-        amount = createHoldRequest.amount,
-        holdTransactionId = transactionGLId,
-        createdAt = createHoldRequest.createdAt,
-      )
-
       whenever { holdRepository.getHoldEntityByLegacyHoldNumber(createHoldRequest.legacyHoldNumber) }.thenReturn(holdEntity)
 
       holdsService.createHold(createHoldRequest, idempotencyKey)
@@ -192,32 +256,7 @@ class HoldsServiceTest {
     @Test
     fun `should handle unique constrain violation and return the existing hold when the hold already exists`() {
       // Unique constraint violation is expected during race conditions
-
-      val createHoldRequest = CreateHoldRequest(
-        prisonNumber = prisonNumber,
-        legacyHoldNumber = 1234,
-        subAccountRef = SubAccountRef.CASH,
-        createdAt = Instant.now(),
-        createdBy = "TEST",
-        holdFromDate = Instant.now(),
-        holdUntilDate = Instant.now().plusSeconds(1),
-        isReleased = false,
-        description = "",
-        holdType = HoldType.HOA,
-        amount = 100,
-        holdLocation = "LEI",
-        prisonSubAccountId = prisonHoldAccountUUID,
-        prisonerSubAccountId = prisonerCashAccountUUID,
-      )
-
-      val holdEntity = createHoldEntity(
-        prisonNumber = createHoldRequest.prisonNumber,
-        holdNumber = createHoldRequest.legacyHoldNumber,
-        subAccountRef = createHoldRequest.subAccountRef,
-        isReleased = createHoldRequest.isReleased,
-        amount = createHoldRequest.amount,
-        createdAt = createHoldRequest.createdAt,
-      )
+      mockSubaccountResolution()
 
       whenever { holdRepository.getHoldEntityByLegacyHoldNumber(createHoldRequest.legacyHoldNumber) }
         .thenReturn(null)

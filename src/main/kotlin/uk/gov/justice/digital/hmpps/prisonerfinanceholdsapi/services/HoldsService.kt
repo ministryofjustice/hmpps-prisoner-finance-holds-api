@@ -103,6 +103,24 @@ class HoldsService(
       return existingHold
     }
 
+    val prisonerSubaccount = generalLedgerApiClient.findSubAccount(
+      parentReference = createHoldRequest.prisonNumber,
+      subAccountReference = createHoldRequest.subAccountRef.toString(),
+    )
+
+    if (prisonerSubaccount == null) {
+      throw CustomException("Prisoner subaccount not found", HttpStatus.NOT_FOUND)
+    }
+
+    val prisonSubaccount = generalLedgerApiClient.findSubAccount(
+      parentReference = createHoldRequest.holdLocation,
+      subAccountReference = "2199:${createHoldRequest.holdType}",
+    )
+
+    if (prisonSubaccount == null) {
+      throw CustomException("Prison subaccount not found", HttpStatus.NOT_FOUND)
+    }
+
     val transactionGLId = saveHoldTransactionToGL(createHoldRequest, idempotencyKey)
 
     val newHold = HoldEntity(
