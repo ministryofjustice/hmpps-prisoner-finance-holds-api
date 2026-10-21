@@ -196,6 +196,76 @@ class HoldsIntegrationTest : IntegrationTestBase() {
     }
 
     @Test
+    fun `should return 404 if the prisoner subaccount is not found`() {
+      val createHoldRequest = CreateHoldRequest(
+        prisonNumber = prisonNumber,
+        legacyHoldNumber = 12345678,
+        subAccountRef = SubAccountRef.CASH,
+        createdAt = Instant.now(),
+        createdBy = "TEST",
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(1),
+        isReleased = false,
+        description = "Damages to cell",
+        holdType = HoldType.HOA,
+        amount = 1000L,
+        holdLocation = "LEI",
+        holdLegacyTransactionId = 123L,
+        releaseLegacyTransactionId = null,
+      )
+
+      generalLedgerApi.stubGetSubAccountNotFound(
+        parentReference = prisonNumber,
+        subAccountReference = SubAccountRef.CASH.toString(),
+      )
+
+      webTestClient.post().uri("/holds")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .headers(setIdempotencyKey(idempotencyKey))
+        .bodyValue(createHoldRequest)
+        .exchange()
+        .expectStatus().isEqualTo(HttpStatus.NOT_FOUND)
+        .expectBody<ErrorResponse>()
+        .returnResult()
+        .responseBody!!
+    }
+
+    @Test
+    fun `should return 404 if the prison subaccount is not found`() {
+      val createHoldRequest = CreateHoldRequest(
+        prisonNumber = prisonNumber,
+        legacyHoldNumber = 12345678,
+        subAccountRef = SubAccountRef.CASH,
+        createdAt = Instant.now(),
+        createdBy = "TEST",
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(1),
+        isReleased = false,
+        description = "Damages to cell",
+        holdType = HoldType.HOA,
+        amount = 1000L,
+        holdLocation = "LEI",
+        holdLegacyTransactionId = 123L,
+        releaseLegacyTransactionId = null,
+      )
+
+      generalLedgerApi.stubGetSubAccountNotFound(
+        parentReference = "LEI",
+        subAccountReference = prisonSubAccountRef,
+      )
+
+      webTestClient.post().uri("/holds")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .headers(setIdempotencyKey(idempotencyKey))
+        .bodyValue(createHoldRequest)
+        .exchange()
+        .expectStatus().isEqualTo(HttpStatus.NOT_FOUND)
+        .expectBody<ErrorResponse>()
+        .returnResult()
+        .responseBody!!
+    }
+
+    @Test
     fun `should return 502 if GL responds with an error and not save the hold`() {
       val createHoldRequest = CreateHoldRequest(
         prisonNumber = prisonNumber,
