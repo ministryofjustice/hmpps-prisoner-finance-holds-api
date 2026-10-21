@@ -111,8 +111,8 @@ class GeneralLedgerApiClient(
   }
 
   // POST /transactions
-  fun postTransaction(request: CreateTransactionRequest, idempotencyKey: UUID, transactionId: Long? = null): UUID {
-    log.info("Posting transaction. NOMIS transactionId: $transactionId. NOMIS entrySequence ${request.entrySequence}. Key: $idempotencyKey")
+  fun postTransaction(request: CreateTransactionRequest, idempotencyKey: UUID): UUID {
+    log.info("Posting transaction. NOMIS transactionId: ${request.legacyTransactionId}. NOMIS entrySequence ${request.entrySequence}. Key: $idempotencyKey")
 
     val response = handleExceptions(
       { transactionApi.postTransaction(idempotencyKey, request).block() },
