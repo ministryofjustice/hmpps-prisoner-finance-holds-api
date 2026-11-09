@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
 import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 import org.junit.jupiter.params.provider.EnumSource
 import org.mockito.InjectMocks
 import org.mockito.Mock
@@ -732,9 +733,15 @@ class HoldsServiceTest {
       holdsService.releaseHoldById(holdId, releaseHoldRequest, idempotencyKey)
     }
 
-    @Test
-    fun `should call create transaction for the release`() {
-      whenever { holdRepository.findHoldEntityById(holdId) }.thenReturn(unreleasedHoldEntity)
+    @ParameterizedTest
+    @CsvSource(
+      "HOA, HOR",
+      "WHF, WFR",
+    )
+    fun `should call create transaction for the release`(holdType: HoldType, releaseType: String) {
+      val holdEntity = unreleasedHoldEntity.copy(holdType = holdType)
+
+      whenever { holdRepository.findHoldEntityById(holdId) }.thenReturn(holdEntity)
 
       whenever {
         generalLedgerApiClient.findSubAccount(
@@ -746,7 +753,7 @@ class HoldsServiceTest {
       whenever {
         generalLedgerApiClient.findSubAccount(
           parentReference = unreleasedHoldEntity.holdLocation,
-          subAccountReference = "2199:HOR",
+          subAccountReference = "2199:$releaseType",
         )
       }.thenReturn(prisonSubAccountResponse)
 
