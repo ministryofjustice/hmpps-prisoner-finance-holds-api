@@ -7,6 +7,6 @@ enum class HoldType {
 
   fun getReleaseType(): String = when (this) {
     HOA -> "HOR"
-    WHF -> "WHR"
+    WHF -> "WFR"
   }
 }
