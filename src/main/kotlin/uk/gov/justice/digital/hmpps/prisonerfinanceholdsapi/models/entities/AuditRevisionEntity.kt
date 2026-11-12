@@ -9,6 +9,7 @@ import jakarta.persistence.Table
 import org.hibernate.envers.RevisionEntity
 import org.hibernate.envers.RevisionNumber
 import org.hibernate.envers.RevisionTimestamp
+import java.time.Instant
 
 @Entity
 @Table(name = "revinfo")
@@ -23,5 +24,5 @@ open class AuditRevisionEntity {
 
   @field:RevisionTimestamp
   @field:Column(name = "revtstmp", nullable = false)
-  open var timestamp: Long = 0
+  open var timestamp: Instant = Instant.now()
 }
