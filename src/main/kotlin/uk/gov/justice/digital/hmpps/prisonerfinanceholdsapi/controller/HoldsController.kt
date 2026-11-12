@@ -357,4 +357,26 @@ class HoldsController(val holdsService: HoldsService) {
 
     return ResponseEntity.status(HttpStatus.OK).body(response)
   }
+
+  @SecurityRequirement(
+    name = "bearer-jwt",
+    scopes = [ROLE_PRISONER_FINANCE__HOLDS__RW],
+  )
+  @PreAuthorize("hasAnyAuthority('$ROLE_PRISONER_FINANCE__HOLDS__RW')")
+  @PostMapping("/merge/holds/{mergedPrisonNumber}/{survivedPrisonNumber}")
+  fun mergeHolds(
+    @Pattern(
+      regexp = VALIDATION_REGEX_PRISON_NUMBER,
+      message = VALIDATION_MESSAGE_PRISON_NUMBER,
+    )
+    @PathVariable mergedPrisonNumber: String,
+    @Pattern(
+      regexp = VALIDATION_REGEX_PRISON_NUMBER,
+      message = VALIDATION_MESSAGE_PRISON_NUMBER,
+    )
+    @PathVariable survivedPrisonNumber: String,
+  ): ResponseEntity<Void> {
+    holdsService.mergeHolds(survivedPrisonNumber, mergedPrisonNumber)
+    return ResponseEntity.ok().build()
+  }
 }

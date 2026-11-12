@@ -25,7 +25,7 @@ data class HoldEntity(
   val id: UUID = UUID.randomUUID(),
 
   @Column(name = "prison_number", nullable = false, unique = false)
-  val prisonNumber: String,
+  var prisonNumber: String,
 
   @Column(name = "legacy_hold_number", nullable = false, unique = true)
   val legacyHoldNumber: Long,

@@ -260,4 +260,11 @@ class HoldsService(
         content.map { HoldResponse.fromEntity(it) }
       }
   }
+
+  fun mergeHolds(survivedPrisonNumber: String, mergedPrisonNumber: String) {
+    val holds = holdRepository.findHoldEntityByPrisonNumber(prisonNumber = mergedPrisonNumber)
+
+    holds.forEach { hold -> hold.prisonNumber = survivedPrisonNumber }
+    holdRepository.saveAll(holds)
+  }
 }
