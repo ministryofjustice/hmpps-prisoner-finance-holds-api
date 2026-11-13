@@ -357,4 +357,53 @@ class HoldsController(val holdsService: HoldsService) {
 
     return ResponseEntity.status(HttpStatus.OK).body(response)
   }
+
+  @Operation(
+    summary = "Merge all holds to a new prisonNumber",
+    description = "Merge all holds to a new prisonNumber",
+  )
+  @ApiResponses(
+    value = [
+      ApiResponse(
+        responseCode = "200",
+        description = "All Holds have been merged to the new prisonNumber",
+      ),
+      ApiResponse(
+        responseCode = "401",
+        description = "Unauthorized - requires a valid OAuth2 token",
+        content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
+      ),
+      ApiResponse(
+        responseCode = "403",
+        description = "Forbidden - requires an appropriate role",
+        content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
+      ),
+      ApiResponse(
+        responseCode = "500",
+        description = "Internal Server Error - An unexpected error occurred.",
+        content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
+      ),
+    ],
+  )
+  @SecurityRequirement(
+    name = "bearer-jwt",
+    scopes = [ROLE_PRISONER_FINANCE__HOLDS__RW],
+  )
+  @PreAuthorize("hasAnyAuthority('$ROLE_PRISONER_FINANCE__HOLDS__RW')")
+  @PostMapping("/merge/holds/{mergedPrisonNumber}/{survivedPrisonNumber}")
+  fun mergeHolds(
+    @Pattern(
+      regexp = VALIDATION_REGEX_PRISON_NUMBER,
+      message = VALIDATION_MESSAGE_PRISON_NUMBER,
+    )
+    @PathVariable mergedPrisonNumber: String,
+    @Pattern(
+      regexp = VALIDATION_REGEX_PRISON_NUMBER,
+      message = VALIDATION_MESSAGE_PRISON_NUMBER,
+    )
+    @PathVariable survivedPrisonNumber: String,
+  ): ResponseEntity<Void> {
+    holdsService.mergeHolds(survivedPrisonNumber, mergedPrisonNumber)
+    return ResponseEntity.ok().build()
+  }
 }

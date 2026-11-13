@@ -959,4 +959,65 @@ class HoldsServiceTest {
       verify(generalLedgerApiClient, never()).postTransaction(any(), any())
     }
   }
+
+  @Nested
+  inner class MergeHolds {
+    private val survivedPrisonNumber = "A123AA"
+    private val mergedPrisonNumber = "X999ZX"
+
+    @Test
+    fun `should merge holds by prisonNumber`() {
+      val mockHolds = listOf(
+        HoldEntity(
+          prisonNumber = mergedPrisonNumber,
+          legacyHoldNumber = 123,
+          subAccountRef = SubAccountRef.SPENDS,
+          createdAt = Instant.now(),
+          createdBy = "TEST",
+          holdFromDate = Instant.now(),
+          holdUntilDate = null,
+          isReleased = false,
+          description = "a description",
+          holdType = HoldType.HOA,
+          amount = 123,
+          holdLocation = "LEI",
+          releasedAt = Instant.now(),
+          holdTransactionId = null,
+          releasedTransactionId = null,
+        ),
+        HoldEntity(
+          prisonNumber = mergedPrisonNumber,
+          legacyHoldNumber = 5322,
+          subAccountRef = SubAccountRef.SPENDS,
+          createdAt = Instant.now(),
+          createdBy = "TEST",
+          holdFromDate = Instant.now(),
+          holdUntilDate = null,
+          isReleased = false,
+          description = "a description",
+          holdType = HoldType.HOA,
+          amount = 123,
+          holdLocation = "LEI",
+          releasedAt = Instant.now(),
+          holdTransactionId = null,
+          releasedTransactionId = null,
+        ),
+      )
+
+      whenever {
+        holdRepository.findHoldEntityByPrisonNumber(mergedPrisonNumber)
+      }.thenReturn(mockHolds)
+
+      val entityUpdateCaptor = argumentCaptor<List<HoldEntity>>()
+
+      whenever { holdRepository.saveAll(entityUpdateCaptor.capture()) }.thenAnswer { it.arguments[0] }
+
+      holdsService.mergeHolds(survivedPrisonNumber, mergedPrisonNumber)
+
+      entityUpdateCaptor.firstValue.withIndex().forEach { (i, hold) ->
+        assertThat(mockHolds[i].holdTransactionId).isEqualTo(hold.holdTransactionId)
+        assertThat(hold.prisonNumber).isEqualTo(survivedPrisonNumber)
+      }
+    }
+  }
 }

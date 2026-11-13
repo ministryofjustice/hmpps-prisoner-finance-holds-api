@@ -1674,4 +1674,87 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         .isBadRequest
     }
   }
+
+  @Nested
+  inner class MergePrisonNumber {
+    val survivingPrisonNumber = "A9971EC"
+    val mergedPrisonNumber = "B9971XZ"
+
+    @Test
+    fun `Should merge all holds of a prisonNUmber to another`() {
+      integrationTestHelpers.createHold(
+        prisonNumber = mergedPrisonNumber,
+        holdNumber = 123,
+        subAccountRef = SubAccountRef.SPENDS,
+        amount = 10,
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(240),
+        isReleased = false,
+        holdType = HoldType.HOA,
+      )
+
+      val responseBeforeMerge = webTestClient.get().uri("/holds/$mergedPrisonNumber")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .exchange()
+        .expectStatus()
+        .isOk
+        .expectBody<PagedResponse<HoldResponse>>()
+        .returnResult()
+        .responseBody!!
+
+      assertThat(responseBeforeMerge.content).hasSize(1)
+      assertThat(responseBeforeMerge.content.first().prisonNumber).isEqualTo(mergedPrisonNumber)
+
+      val responseSurvivorBeforeMerge = webTestClient.get().uri("/holds/$survivingPrisonNumber")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .exchange()
+        .expectStatus()
+        .isOk
+        .expectBody<PagedResponse<HoldResponse>>()
+        .returnResult()
+        .responseBody!!
+
+      assertThat(responseSurvivorBeforeMerge.content).hasSize(0)
+
+      webTestClient.post().uri("/merge/holds/$mergedPrisonNumber/$survivingPrisonNumber")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .header("Content-Type", "application/json")
+        .exchange()
+        .expectStatus()
+        .isOk
+
+      val responseAfterMerge = webTestClient.get().uri("/holds/$mergedPrisonNumber")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .exchange()
+        .expectStatus()
+        .isOk
+        .expectBody<PagedResponse<HoldResponse>>()
+        .returnResult()
+        .responseBody!!
+
+      assertThat(responseAfterMerge.content).hasSize(0)
+
+      val responseSurvivorAfterMerge = webTestClient.get().uri("/holds/$survivingPrisonNumber")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .exchange()
+        .expectStatus()
+        .isOk
+        .expectBody<PagedResponse<HoldResponse>>()
+        .returnResult()
+        .responseBody!!
+
+      assertThat(responseSurvivorAfterMerge.content).hasSize(1)
+      assertThat(responseSurvivorAfterMerge.content.first().prisonNumber).isEqualTo(survivingPrisonNumber)
+    }
+
+    @Test
+    fun `should return 403 forbidden when user does not have the correct role`() {
+      webTestClient.post().uri("/merge/holds/$mergedPrisonNumber/$survivingPrisonNumber")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RO)))
+        .header("Content-Type", "application/json")
+        .exchange()
+        .expectStatus()
+        .isForbidden
+    }
+  }
 }

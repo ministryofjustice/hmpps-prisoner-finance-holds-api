@@ -6,6 +6,8 @@ import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
 import jakarta.persistence.Id
 import jakarta.persistence.Table
+import org.hibernate.envers.AuditTable
+import org.hibernate.envers.Audited
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.HoldType
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.SubAccountRef
 import java.time.Instant
@@ -15,13 +17,15 @@ import java.util.UUID
 @Table(
   name = "holds",
 )
+@Audited
+@AuditTable(value = "holds_aud")
 data class HoldEntity(
 
   @Id
   val id: UUID = UUID.randomUUID(),
 
   @Column(name = "prison_number", nullable = false, unique = false)
-  val prisonNumber: String,
+  var prisonNumber: String,
 
   @Column(name = "legacy_hold_number", nullable = false, unique = true)
   val legacyHoldNumber: Long,

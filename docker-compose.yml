@@ -16,7 +16,7 @@ services:
     depends_on:
       hmpps-auth:
         condition: service_started
-      hmpps-prisoner-finance-general-ledger:
+      hmpps-prisoner-finance-general-ledger-api:
         condition: service_started
       hmpps-prisoner-finance-holds-db:
         condition: service_healthy
