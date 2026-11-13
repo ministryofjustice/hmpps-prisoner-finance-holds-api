@@ -367,7 +367,7 @@ class HoldsController(val holdsService: HoldsService) {
       ApiResponse(
         responseCode = "200",
         description = "All Holds have been merged to the new prisonNumber",
-        ),
+      ),
       ApiResponse(
         responseCode = "401",
         description = "Unauthorized - requires a valid OAuth2 token",
