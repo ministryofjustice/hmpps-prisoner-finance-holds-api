@@ -1746,5 +1746,15 @@ class HoldsIntegrationTest : IntegrationTestBase() {
       assertThat(responseSurvivorAfterMerge.content).hasSize(1)
       assertThat(responseSurvivorAfterMerge.content.first().prisonNumber).isEqualTo(survivingPrisonNumber)
     }
+
+    @Test
+    fun `should return 403 forbidden when user does not have the correct role`() {
+      webTestClient.post().uri("/merge/holds/$mergedPrisonNumber/$survivingPrisonNumber")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RO)))
+        .header("Content-Type", "application/json")
+        .exchange()
+        .expectStatus()
+        .isForbidden
+    }
   }
 }

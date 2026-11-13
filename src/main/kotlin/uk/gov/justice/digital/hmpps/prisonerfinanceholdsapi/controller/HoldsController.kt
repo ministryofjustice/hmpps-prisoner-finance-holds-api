@@ -358,6 +358,33 @@ class HoldsController(val holdsService: HoldsService) {
     return ResponseEntity.status(HttpStatus.OK).body(response)
   }
 
+  @Operation(
+    summary = "Merge all holds to a new prisonNumber",
+    description = "Merge all holds to a new prisonNumber",
+  )
+  @ApiResponses(
+    value = [
+      ApiResponse(
+        responseCode = "200",
+        description = "All Holds have been merged to the new prisonNumber",
+        ),
+      ApiResponse(
+        responseCode = "401",
+        description = "Unauthorized - requires a valid OAuth2 token",
+        content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
+      ),
+      ApiResponse(
+        responseCode = "403",
+        description = "Forbidden - requires an appropriate role",
+        content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
+      ),
+      ApiResponse(
+        responseCode = "500",
+        description = "Internal Server Error - An unexpected error occurred.",
+        content = [Content(mediaType = "application/json", schema = Schema(implementation = ErrorResponse::class))],
+      ),
+    ],
+  )
   @SecurityRequirement(
     name = "bearer-jwt",
     scopes = [ROLE_PRISONER_FINANCE__HOLDS__RW],
