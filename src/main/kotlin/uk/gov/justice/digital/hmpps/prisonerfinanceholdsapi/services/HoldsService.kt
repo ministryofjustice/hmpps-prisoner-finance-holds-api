@@ -264,7 +264,10 @@ class HoldsService(
   fun mergeHolds(survivedPrisonNumber: String, mergedPrisonNumber: String) {
     val holds = holdRepository.findHoldEntityByPrisonNumber(prisonNumber = mergedPrisonNumber)
 
-    holds.forEach { hold -> hold.prisonNumber = survivedPrisonNumber }
+    holds.forEach { hold ->
+      hold.prisonNumber = survivedPrisonNumber
+      hold.updatedBy = "DPS-Merge-Event"
+    }
     holdRepository.saveAll(holds)
   }
 }

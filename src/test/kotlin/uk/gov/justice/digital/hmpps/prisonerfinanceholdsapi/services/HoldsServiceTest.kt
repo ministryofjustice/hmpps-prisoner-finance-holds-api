@@ -1017,6 +1017,7 @@ class HoldsServiceTest {
       entityUpdateCaptor.firstValue.withIndex().forEach { (i, hold) ->
         assertThat(mockHolds[i].holdTransactionId).isEqualTo(hold.holdTransactionId)
         assertThat(hold.prisonNumber).isEqualTo(survivedPrisonNumber)
+        assertThat(hold.updatedBy).isEqualTo("DPS-Merge-Event")
       }
     }
   }

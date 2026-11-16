@@ -70,4 +70,7 @@ data class HoldEntity(
 
   @Column(name = "release_transaction_id", nullable = true)
   var releasedTransactionId: UUID? = null,
+
+  @Column(name = "updated_by", nullable = true)
+  var updatedBy: String? = null,
 )
