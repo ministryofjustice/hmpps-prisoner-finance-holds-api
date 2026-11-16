@@ -41,6 +41,7 @@ dependencies {
   implementation("org.flywaydb:flyway-core")
   implementation("org.flywaydb:flyway-database-postgresql")
   implementation("org.hibernate.orm:hibernate-envers:7.4.14.Final")
+  implementation("uk.gov.justice.service.hmpps:hmpps-sqs-spring-boot-starter:7.4.1")
 
   testImplementation("uk.gov.justice.service.hmpps:hmpps-kotlin-spring-boot-starter-test:3.1.0")
   testImplementation("org.springframework.boot:spring-boot-starter-webflux-test")
@@ -52,6 +53,7 @@ dependencies {
   testImplementation("org.testcontainers:postgresql:1.21.4")
   testImplementation("org.springframework.boot:spring-boot-testcontainers")
   testImplementation("org.springframework.boot:spring-boot-starter-data-jpa-test")
+  testImplementation("org.testcontainers:localstack:1.21.4")
 }
 
 kotlin {
