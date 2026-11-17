@@ -21,7 +21,7 @@ class DomainEventsSubscriber(
     factory = "hmppsQueueContainerFactoryProxy",
     maxMessagesPerPoll = "1",
     maxConcurrentMessages = "1",
-    )
+  )
   fun handleEvents(requestJson: String?) {
     try {
       log.info("Received event: $requestJson")
