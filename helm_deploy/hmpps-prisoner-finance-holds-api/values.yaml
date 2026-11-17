@@ -72,5 +72,11 @@ generic-service:
       DB_USER: "database_username"
       DB_PASS: "database_password"
 
+    domain-events-prisoner-finance-queue-holds-api:
+      HMPPS_SQS_QUEUES_DOMAINEVENTS_QUEUE_NAME: "sqs_queue_name"
+
+    domain-events-prisoner-finance-dlq-holds-api:
+      HMPPS_SQS_QUEUES_DOMAINEVENTS_DLQ_NAME: "sqs_queue_name"
+
 generic-prometheus-alerts:
   targetApplication: hmpps-prisoner-finance-holds-api

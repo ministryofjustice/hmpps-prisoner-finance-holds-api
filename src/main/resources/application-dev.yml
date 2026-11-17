@@ -23,3 +23,16 @@ holds-api:
   client:
     id: ${HOLDS_API_CLIENT_ID:hmpps-prisoner-finance-holds-api-1}
     secret: ${HOLDS_API_CLIENT_SECRET:clientsecret}
+
+hmpps:
+  sqs:
+    provider: localstack
+    queues:
+      domainevents:
+        queueName: prisoner-finance-event-queue
+        dlqName: prisoner-finance-event-dlq
+        subscribeTopicId: domainevents
+        subscribeFilter: '{"eventType":[ "prison-offender-events.prisoner.merged"] }'
+    topics:
+      domainevents:
+        arn: arn:aws:sns:eu-west-2:000000000000:11111111-2222-3333-4444-555555555555

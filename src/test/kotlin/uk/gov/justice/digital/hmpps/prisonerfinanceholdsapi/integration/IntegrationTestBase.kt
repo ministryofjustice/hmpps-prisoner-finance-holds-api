@@ -20,7 +20,10 @@ import uk.gov.justice.hmpps.test.kotlin.auth.JwtAuthorisationHelper
 import java.util.UUID
 
 @ExtendWith(HmppsAuthApiExtension::class, GeneralLedgerApiExtension::class)
-@SpringBootTest(webEnvironment = RANDOM_PORT)
+@SpringBootTest(
+  webEnvironment = RANDOM_PORT,
+  properties = ["spring.autoconfigure.exclude=uk.gov.justice.hmpps.sqs.HmppsSqsConfiguration"],
+)
 @ActiveProfiles("test")
 @AutoConfigureWebTestClient
 @Import(ContainersConfig::class, IntegrationTestHelpers::class)

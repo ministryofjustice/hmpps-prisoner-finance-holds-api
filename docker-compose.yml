@@ -16,7 +16,7 @@ services:
     depends_on:
       hmpps-auth:
         condition: service_started
-      hmpps-prisoner-finance-general-ledger:
+      hmpps-prisoner-finance-general-ledger-api:
         condition: service_started
       hmpps-prisoner-finance-holds-db:
         condition: service_healthy
@@ -110,8 +110,10 @@ services:
       - "4566:4566"
       - 8999:8080
     environment:
-      - SERVICES=sqs
+      - SERVICES=sns,sqs
       - DEFAULT_REGION=eu-west-2
+    volumes:
+        - "${LOCALSTACK_VOLUME_DIR:-./volume}:/var/lib/localstack"
 
 networks:
   hmpps:
