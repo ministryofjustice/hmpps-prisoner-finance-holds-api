@@ -16,7 +16,12 @@ class DomainEventsSubscriber(
   @Autowired private val objectMapper: ObjectMapper,
   @Autowired private val holdsService: HoldsService,
 ) {
-  @SqsListener("domainevents", factory = "hmppsQueueContainerFactoryProxy")
+  @SqsListener(
+    "domainevents",
+    factory = "hmppsQueueContainerFactoryProxy",
+    maxMessagesPerPoll = "1",
+    maxConcurrentMessages = "1",
+    )
   fun handleEvents(requestJson: String?) {
     try {
       log.info("Received event: $requestJson")
