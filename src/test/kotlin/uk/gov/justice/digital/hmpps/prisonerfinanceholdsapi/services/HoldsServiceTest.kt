@@ -569,7 +569,7 @@ class HoldsServiceTest {
       val pageSize = 10
       val pagedRepoResponse = PageImpl(listOf(holdEntity))
 
-      whenever { holdRepository.findByPrisonNumberAndIsReleasedFalse(eq(prisonNumber), any()) }.thenReturn(
+      whenever { holdRepository.findByPrisonNumberAndIsReleasedFalse(eq(prisonNumber), any(), eq(null)) }.thenReturn(
         pagedRepoResponse,
       )
 
@@ -578,7 +578,7 @@ class HoldsServiceTest {
       val pageableCaptor = argumentCaptor<Pageable>()
 
       verify(holdRepository, times(1))
-        .findByPrisonNumberAndIsReleasedFalse(eq(prisonNumber), pageableCaptor.capture())
+        .findByPrisonNumberAndIsReleasedFalse(eq(prisonNumber), pageableCaptor.capture(), eq(null))
 
       val capturedPageable = pageableCaptor.firstValue
 
@@ -601,6 +601,26 @@ class HoldsServiceTest {
       assertThat(holdResponse.holdFromDate).isEqualTo(holdEntity.holdFromDate)
       assertThat(holdResponse.isReleased).isEqualTo(holdEntity.isReleased)
       assertThat(holdResponse.legacyHoldNumber).isEqualTo(holdEntity.legacyHoldNumber)
+    }
+
+    @ParameterizedTest
+    @CsvSource("HOA", "WHF")
+    fun `Should call repository with hold type`(holdType: HoldType) {
+      val holdsTypeCaptor = argumentCaptor<HoldType>()
+
+      whenever { holdRepository.findByPrisonNumberAndIsReleasedFalse(eq(prisonNumber), any(), any()) }.thenReturn(
+        PageImpl(emptyList()),
+      )
+
+      holdsService.getActiveHolds(prisonNumber, 1, 25, holdType)
+
+      verify(holdRepository, times(1)).findByPrisonNumberAndIsReleasedFalse(
+        eq(prisonNumber),
+        any(),
+        holdsTypeCaptor.capture(),
+      )
+
+      assertThat(holdsTypeCaptor.firstValue).isEqualTo(holdType)
     }
   }
 

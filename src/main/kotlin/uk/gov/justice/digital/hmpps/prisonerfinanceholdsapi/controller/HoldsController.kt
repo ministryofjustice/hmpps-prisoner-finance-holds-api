@@ -27,6 +27,7 @@ import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.CustomExcepti
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.ROLE_PRISONER_FINANCE__HOLDS__RO
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.ROLE_PRISONER_FINANCE__HOLDS__RW
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.TAG_HOLDS
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.HoldType
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.SubAccountRef
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.ReleaseHoldRequest
@@ -348,11 +349,13 @@ class HoldsController(val holdsService: HoldsService) {
     @PathVariable prisonNumber: String,
     @RequestParam @Min(1) pageNumber: Int = 1,
     @RequestParam @Min(1) pageSize: Int = 25,
+    @RequestParam(required = false) holdType: HoldType? = null,
   ): ResponseEntity<PagedResponse<HoldResponse>> {
     val response = holdsService.getActiveHolds(
       prisonNumber = prisonNumber,
       pageNumber = pageNumber,
       pageSize = pageSize,
+      holdType = holdType,
     )
 
     return ResponseEntity.status(HttpStatus.OK).body(response)

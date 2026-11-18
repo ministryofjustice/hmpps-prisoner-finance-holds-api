@@ -3,8 +3,10 @@ package uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Query
 import org.springframework.stereotype.Repository
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.entities.HoldEntity
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.HoldType
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.SubAccountRef
 import java.util.UUID
 
@@ -16,7 +18,9 @@ interface HoldRepository : JpaRepository<HoldEntity, UUID> {
 
   //  If pageable is passed, will return entities in a page rather than a raw list
   fun findByPrisonNumberAndIsReleasedFalse(prisonNumber: String): List<HoldEntity>
-  fun findByPrisonNumberAndIsReleasedFalse(prisonNumber: String, pageable: Pageable): Page<HoldEntity>
+
+  @Query("SELECT h FROM HoldEntity h WHERE h.prisonNumber = :prisonNumber AND h.isReleased = false AND (:holdType IS NULL OR h.holdType = :holdType)")
+  fun findByPrisonNumberAndIsReleasedFalse(prisonNumber: String, pageable: Pageable, holdType: HoldType? = null): Page<HoldEntity>
 
   fun findHoldEntityById(holdId: UUID): HoldEntity?
 

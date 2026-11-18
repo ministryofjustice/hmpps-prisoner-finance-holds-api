@@ -602,6 +602,65 @@ class HoldsIntegrationTest : IntegrationTestBase() {
     }
 
     @Test
+    fun `should filter holds by type and return paged list of holds for prison number`() {
+      val prisonNumber = "A1235BC"
+      val amountOfHOA = 7
+      val amountOfWHF = 3
+
+      repeat(amountOfHOA) { i ->
+        integrationTestHelpers.createHold(
+          prisonNumber = prisonNumber,
+          holdNumber = Random.nextLong(),
+          subAccountRef = SubAccountRef.CASH,
+          amount = 10L + i,
+          holdFromDate = Instant.now(),
+          holdUntilDate = Instant.now().plusSeconds(1),
+          isReleased = false,
+          holdType = HoldType.HOA,
+        )
+        generalLedgerApi.stubPostTransaction(amount = 10L + i)
+      }
+
+      repeat(amountOfWHF) { i ->
+        integrationTestHelpers.createHold(
+          prisonNumber = prisonNumber,
+          holdNumber = Random.nextLong(),
+          subAccountRef = SubAccountRef.CASH,
+          amount = 10L + i,
+          holdFromDate = Instant.now(),
+          holdUntilDate = Instant.now().plusSeconds(1),
+          isReleased = false,
+          holdType = HoldType.WHF,
+        )
+        generalLedgerApi.stubPostTransaction(amount = 10L + i)
+      }
+
+      val responseBodyHOA = webTestClient.get().uri("/holds/$prisonNumber?holdType=HOA")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .exchange()
+        .expectStatus()
+        .isOk
+        .expectBody<PagedResponse<HoldResponse>>()
+        .returnResult()
+        .responseBody!!
+
+      assertThat(responseBodyHOA.content).hasSize(amountOfHOA)
+      assertThat(responseBodyHOA.content.all { it.holdType == HoldType.HOA }).isEqualTo(true)
+
+      val responseBodyWHF = webTestClient.get().uri("/holds/$prisonNumber?holdType=WHF")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .exchange()
+        .expectStatus()
+        .isOk
+        .expectBody<PagedResponse<HoldResponse>>()
+        .returnResult()
+        .responseBody!!
+
+      assertThat(responseBodyWHF.content).hasSize(amountOfWHF)
+      assertThat(responseBodyWHF.content.all { it.holdType == HoldType.WHF }).isEqualTo(true)
+    }
+
+    @Test
     fun `should return 400 BAD REQUEST when page number is invalid`() {
       val prisonNumber = "A1345BC"
 

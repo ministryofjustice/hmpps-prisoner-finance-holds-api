@@ -9,6 +9,7 @@ import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.HoldRepository
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.clients.GeneralLedgerApiClient
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.CustomException
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.entities.HoldEntity
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.HoldType
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.SubAccountRef
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.generalledger.CreatePostingRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.generalledger.CreateTransactionRequest
@@ -243,7 +244,7 @@ class HoldsService(
     )
   }
 
-  fun getActiveHolds(prisonNumber: String, pageNumber: Int, pageSize: Int): PagedResponse<HoldResponse> {
+  fun getActiveHolds(prisonNumber: String, pageNumber: Int, pageSize: Int, holdType: HoldType? = null): PagedResponse<HoldResponse> {
     val zeroIndexedPage: Int = pageNumber - 1
 
     val pagedRequest = PageRequest.of(
@@ -255,7 +256,7 @@ class HoldsService(
       ),
     )
 
-    return holdRepository.findByPrisonNumberAndIsReleasedFalse(prisonNumber, pagedRequest)
+    return holdRepository.findByPrisonNumberAndIsReleasedFalse(prisonNumber, pagedRequest, holdType)
       .toPageResponse { content ->
         content.map { HoldResponse.fromEntity(it) }
       }
