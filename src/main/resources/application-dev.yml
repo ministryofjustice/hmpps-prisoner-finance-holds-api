@@ -27,6 +27,7 @@ holds-api:
 hmpps:
   sqs:
     provider: localstack
+    localstackUrl: ${HMPPS_SQS_LOCALSTACK_URL:http://localhost:4566}
     queues:
       domainevents:
         queueName: prisoner-finance-event-queue
