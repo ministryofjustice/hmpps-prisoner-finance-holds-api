@@ -40,7 +40,7 @@ dependencies {
   implementation("org.postgresql:postgresql:42.7.14")
   implementation("org.flywaydb:flyway-core")
   implementation("org.flywaydb:flyway-database-postgresql")
-  implementation("org.hibernate.orm:hibernate-envers:7.4.14.Final")
+  implementation("org.hibernate.orm:hibernate-envers:7.4.16.Final")
   implementation("uk.gov.justice.service.hmpps:hmpps-sqs-spring-boot-starter:7.4.1")
 
   testImplementation("uk.gov.justice.service.hmpps:hmpps-kotlin-spring-boot-starter-test:3.1.0")
