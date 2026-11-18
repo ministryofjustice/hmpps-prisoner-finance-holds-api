@@ -16,10 +16,10 @@ import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.generalledger
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldMigrationRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.ReleaseHoldRequest
-import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldBalanceResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.PagedResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.ReleasedHoldResponse
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.TotalHoldBalanceResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.utils.toPageResponse
 import java.time.Instant
 import java.util.UUID
@@ -154,19 +154,31 @@ class HoldsService(
     return saveOrGetExistingHoldEntity(newHold, createHoldRequest.legacyHoldNumber)
   }
 
-  fun getHoldBalanceForAccount(prisonNumber: String): HoldBalanceResponse {
-    val amount = holdRepository.findByPrisonNumberAndIsReleasedFalse(
+  fun getHoldBalanceForAccount(prisonNumber: String): TotalHoldBalanceResponse {
+    val holds = holdRepository.findByPrisonNumberAndIsReleasedFalse(
       prisonNumber = prisonNumber,
-    ).sumOf { it.amount }
-    return HoldBalanceResponse(Instant.now(), amount)
+    )
+
+    return calculateHoldBalances(holds)
   }
 
-  fun getHoldBalanceForSubAccount(prisonNumber: String, subAccountRef: SubAccountRef): HoldBalanceResponse {
-    val amount = holdRepository.findByPrisonNumberAndSubAccountRefAndIsReleasedFalse(
+  fun getHoldBalanceForSubAccount(prisonNumber: String, subAccountRef: SubAccountRef): TotalHoldBalanceResponse {
+    val holds = holdRepository.findByPrisonNumberAndSubAccountRefAndIsReleasedFalse(
       prisonNumber = prisonNumber,
       subAccountRef = subAccountRef,
-    ).sumOf { it.amount }
-    return HoldBalanceResponse(Instant.now(), amount)
+    )
+
+    return calculateHoldBalances(holds)
+  }
+
+  private fun calculateHoldBalances(holds: List<HoldEntity>): TotalHoldBalanceResponse {
+    val (hoa, whf) = holds.partition { it.holdType == HoldType.HOA }
+
+    val hoaBalance = hoa.sumOf { it.amount }
+    val whfBalance = whf.sumOf { it.amount }
+    val totalBalance = hoaBalance + whfBalance
+
+    return TotalHoldBalanceResponse(balanceDateTime = Instant.now(), amount = totalBalance, hoa = hoaBalance, whf = whfBalance)
   }
 
   fun releaseHoldById(holdId: UUID, releaseHoldRequest: ReleaseHoldRequest, idempotencyKey: UUID): ReleasedHoldResponse {

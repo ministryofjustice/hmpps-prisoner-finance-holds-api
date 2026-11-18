@@ -25,10 +25,10 @@ import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.generalledger
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldMigrationRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.ReleaseHoldRequest
-import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldBalanceResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.PagedResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.ReleasedHoldResponse
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.TotalHoldBalanceResponse
 import uk.gov.justice.hmpps.kotlin.common.ErrorResponse
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -1210,11 +1210,54 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         .exchange()
         .expectStatus()
         .isOk
-        .expectBody<HoldBalanceResponse>()
+        .expectBody<TotalHoldBalanceResponse>()
         .returnResult()
         .responseBody!!
 
       assertThat(result.amount).isEqualTo(1100)
+    }
+
+    @Test
+    fun `should return holds balance for HOA and WHF`() {
+      val prisonNumber = "A1245BC"
+
+      val threeDaysInSeconds = 259200L
+
+      val hoaResponse = integrationTestHelpers.createHold(
+        prisonNumber = prisonNumber,
+        holdNumber = 12345678,
+        subAccountRef = SubAccountRef.CASH,
+        amount = 500L,
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds),
+        isReleased = false,
+        holdType = HoldType.HOA,
+      )
+
+      val whfResponse = integrationTestHelpers.createHold(
+        prisonNumber = prisonNumber,
+        holdNumber = 12345679,
+        subAccountRef = SubAccountRef.SPENDS,
+        amount = 600L,
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds),
+        isReleased = false,
+        holdType = HoldType.WHF,
+      )
+
+      val balanceResponse = webTestClient.get().uri("/holds/$prisonNumber/balance")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RO)))
+        .header("Content-Type", "application/json")
+        .exchange()
+        .expectStatus()
+        .isOk
+        .expectBody<TotalHoldBalanceResponse>()
+        .returnResult()
+        .responseBody!!
+
+      assertThat(balanceResponse.hoa).isEqualTo(hoaResponse.amount)
+      assertThat(balanceResponse.whf).isEqualTo(whfResponse.amount)
+      assertThat(balanceResponse.amount).isEqualTo(hoaResponse.amount + whfResponse.amount)
     }
 
     @Test
@@ -1269,7 +1312,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         .exchange()
         .expectStatus()
         .isOk
-        .expectBody<HoldBalanceResponse>()
+        .expectBody<TotalHoldBalanceResponse>()
         .returnResult()
         .responseBody!!
 
@@ -1286,11 +1329,13 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         .exchange()
         .expectStatus()
         .isOk
-        .expectBody<HoldBalanceResponse>()
+        .expectBody<TotalHoldBalanceResponse>()
         .returnResult()
         .responseBody!!
 
       assertThat(result.amount).isEqualTo(0)
+      assertThat(result.hoa).isEqualTo(0)
+      assertThat(result.whf).isEqualTo(0)
     }
 
     @Test
@@ -1363,11 +1408,75 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         .exchange()
         .expectStatus()
         .isOk
-        .expectBody<HoldBalanceResponse>()
+        .expectBody<TotalHoldBalanceResponse>()
         .returnResult()
         .responseBody!!
 
       assertThat(result.amount).isEqualTo(800)
+    }
+
+    @Test
+    fun `should return holds balance for HOA and WHF`() {
+      val prisonNumber = "A1245BC"
+
+      val threeDaysInSeconds = 259200L
+
+      val hoaResponseCash = integrationTestHelpers.createHold(
+        prisonNumber = prisonNumber,
+        holdNumber = 1,
+        subAccountRef = SubAccountRef.CASH,
+        amount = 10L,
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds),
+        isReleased = false,
+        holdType = HoldType.HOA,
+      )
+
+      val whfResponseCash = integrationTestHelpers.createHold(
+        prisonNumber = prisonNumber,
+        holdNumber = 2,
+        subAccountRef = SubAccountRef.CASH,
+        amount = 50L,
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds),
+        isReleased = false,
+        holdType = HoldType.WHF,
+      )
+
+      val whfResponseSpends = integrationTestHelpers.createHold(
+        prisonNumber = prisonNumber,
+        holdNumber = 3,
+        subAccountRef = SubAccountRef.SPENDS,
+        amount = 100L,
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds),
+        isReleased = false,
+        holdType = HoldType.WHF,
+      )
+      val hoaResponseSpends = integrationTestHelpers.createHold(
+        prisonNumber = prisonNumber,
+        holdNumber = 4,
+        subAccountRef = SubAccountRef.SPENDS,
+        amount = 200L,
+        holdFromDate = Instant.now(),
+        holdUntilDate = Instant.now().plusSeconds(threeDaysInSeconds),
+        isReleased = false,
+        holdType = HoldType.HOA,
+      )
+
+      val balanceResponse = webTestClient.get().uri("/holds/$prisonNumber/balance/CASH")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RO)))
+        .header("Content-Type", "application/json")
+        .exchange()
+        .expectStatus()
+        .isOk
+        .expectBody<TotalHoldBalanceResponse>()
+        .returnResult()
+        .responseBody!!
+
+      assertThat(balanceResponse.hoa).isEqualTo(hoaResponseCash.amount)
+      assertThat(balanceResponse.whf).isEqualTo(whfResponseCash.amount)
+      assertThat(balanceResponse.amount).isEqualTo(hoaResponseCash.amount + whfResponseCash.amount)
     }
 
     @Test
@@ -1422,7 +1531,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         .exchange()
         .expectStatus()
         .isOk
-        .expectBody<HoldBalanceResponse>()
+        .expectBody<TotalHoldBalanceResponse>()
         .returnResult()
         .responseBody!!
 
@@ -1439,7 +1548,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         .exchange()
         .expectStatus()
         .isOk
-        .expectBody<HoldBalanceResponse>()
+        .expectBody<TotalHoldBalanceResponse>()
         .returnResult()
         .responseBody!!
 

@@ -60,6 +60,7 @@ class HoldsServiceTest {
     holdTransactionId: UUID? = null,
     releasedTransactionId: UUID? = null,
     createdAt: Instant = Instant.now(),
+    holdType: HoldType = HoldType.HOA,
   ) = HoldEntity(
     prisonNumber = prisonNumber,
     legacyHoldNumber = holdNumber,
@@ -70,7 +71,7 @@ class HoldsServiceTest {
     holdUntilDate = Instant.now().plusSeconds(1),
     isReleased = isReleased,
     description = "",
-    holdType = HoldType.HOA,
+    holdType = holdType,
     amount = amount,
     holdLocation = "LEI",
     holdTransactionId = holdTransactionId,
@@ -481,6 +482,80 @@ class HoldsServiceTest {
     }
 
     @Test
+    fun `should calculate HOA balance from the returned holds`() {
+      whenever { holdRepository.findByPrisonNumberAndIsReleasedFalse(prisonNumber) }
+        .thenReturn(
+          listOf(
+            createHoldEntity(
+              prisonNumber = prisonNumber,
+              holdNumber = 1234,
+              subAccountRef = SubAccountRef.SPENDS,
+              isReleased = false,
+              amount = 500,
+              holdType = HoldType.HOA,
+            ),
+            createHoldEntity(
+              prisonNumber = prisonNumber,
+              holdNumber = 1234,
+              subAccountRef = SubAccountRef.SPENDS,
+              isReleased = false,
+              amount = 500,
+              holdType = HoldType.HOA,
+            ),
+            createHoldEntity(
+              prisonNumber = prisonNumber,
+              holdNumber = 1234,
+              subAccountRef = SubAccountRef.SPENDS,
+              isReleased = false,
+              amount = 200,
+              holdType = HoldType.WHF,
+            ),
+          ),
+        )
+
+      val response = holdsService.getHoldBalanceForAccount(prisonNumber)
+
+      assertThat(response.hoa).isEqualTo(1000)
+    }
+
+    @Test
+    fun `should calculate WHF balance from the returned holds`() {
+      whenever { holdRepository.findByPrisonNumberAndIsReleasedFalse(prisonNumber) }
+        .thenReturn(
+          listOf(
+            createHoldEntity(
+              prisonNumber = prisonNumber,
+              holdNumber = 1234,
+              subAccountRef = SubAccountRef.SPENDS,
+              isReleased = false,
+              amount = 500,
+              holdType = HoldType.HOA,
+            ),
+            createHoldEntity(
+              prisonNumber = prisonNumber,
+              holdNumber = 1234,
+              subAccountRef = SubAccountRef.SPENDS,
+              isReleased = false,
+              amount = 500,
+              holdType = HoldType.WHF,
+            ),
+            createHoldEntity(
+              prisonNumber = prisonNumber,
+              holdNumber = 1234,
+              subAccountRef = SubAccountRef.SPENDS,
+              isReleased = false,
+              amount = 200,
+              holdType = HoldType.WHF,
+            ),
+          ),
+        )
+
+      val response = holdsService.getHoldBalanceForAccount(prisonNumber)
+
+      assertThat(response.whf).isEqualTo(700)
+    }
+
+    @Test
     fun `should return hold balance 0 when there are no holds`() {
       whenever { holdRepository.findByPrisonNumberAndIsReleasedFalse(prisonNumber) }
         .thenReturn(
@@ -488,6 +563,8 @@ class HoldsServiceTest {
         )
       val response = holdsService.getHoldBalanceForAccount(prisonNumber)
       assertThat(response.amount).isEqualTo(0)
+      assertThat(response.hoa).isEqualTo(0)
+      assertThat(response.whf).isEqualTo(0)
     }
   }
 
@@ -527,6 +604,80 @@ class HoldsServiceTest {
     }
 
     @Test
+    fun `should calculate HOA balance from the returned holds`() {
+      whenever { holdRepository.findByPrisonNumberAndSubAccountRefAndIsReleasedFalse(prisonNumber, SubAccountRef.SPENDS) }
+        .thenReturn(
+          listOf(
+            createHoldEntity(
+              prisonNumber = prisonNumber,
+              holdNumber = 1234,
+              subAccountRef = SubAccountRef.SPENDS,
+              isReleased = false,
+              amount = 500,
+              holdType = HoldType.HOA,
+            ),
+            createHoldEntity(
+              prisonNumber = prisonNumber,
+              holdNumber = 1234,
+              subAccountRef = SubAccountRef.SPENDS,
+              isReleased = false,
+              amount = 500,
+              holdType = HoldType.HOA,
+            ),
+            createHoldEntity(
+              prisonNumber = prisonNumber,
+              holdNumber = 1234,
+              subAccountRef = SubAccountRef.SPENDS,
+              isReleased = false,
+              amount = 200,
+              holdType = HoldType.WHF,
+            ),
+          ),
+        )
+
+      val response = holdsService.getHoldBalanceForSubAccount(prisonNumber, SubAccountRef.SPENDS)
+
+      assertThat(response.hoa).isEqualTo(1000)
+    }
+
+    @Test
+    fun `should calculate WHF balance from the returned holds`() {
+      whenever { holdRepository.findByPrisonNumberAndSubAccountRefAndIsReleasedFalse(prisonNumber, SubAccountRef.SPENDS) }
+        .thenReturn(
+          listOf(
+            createHoldEntity(
+              prisonNumber = prisonNumber,
+              holdNumber = 1234,
+              subAccountRef = SubAccountRef.SPENDS,
+              isReleased = false,
+              amount = 500,
+              holdType = HoldType.HOA,
+            ),
+            createHoldEntity(
+              prisonNumber = prisonNumber,
+              holdNumber = 1234,
+              subAccountRef = SubAccountRef.SPENDS,
+              isReleased = false,
+              amount = 500,
+              holdType = HoldType.WHF,
+            ),
+            createHoldEntity(
+              prisonNumber = prisonNumber,
+              holdNumber = 1234,
+              subAccountRef = SubAccountRef.SPENDS,
+              isReleased = false,
+              amount = 200,
+              holdType = HoldType.WHF,
+            ),
+          ),
+        )
+
+      val response = holdsService.getHoldBalanceForSubAccount(prisonNumber, SubAccountRef.SPENDS)
+
+      assertThat(response.whf).isEqualTo(700)
+    }
+
+    @Test
     fun `should return hold balance 0 when there are no holds in the sub account`() {
       whenever {
         holdRepository.findByPrisonNumberAndSubAccountRefAndIsReleasedFalse(
@@ -540,6 +691,8 @@ class HoldsServiceTest {
 
       val response = holdsService.getHoldBalanceForSubAccount(prisonNumber, SubAccountRef.SPENDS)
       assertThat(response.amount).isEqualTo(0)
+      assertThat(response.hoa).isEqualTo(0)
+      assertThat(response.whf).isEqualTo(0)
     }
   }
 
