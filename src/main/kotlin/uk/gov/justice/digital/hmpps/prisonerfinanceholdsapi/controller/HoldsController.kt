@@ -27,13 +27,14 @@ import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.CustomExcepti
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.ROLE_PRISONER_FINANCE__HOLDS__RO
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.ROLE_PRISONER_FINANCE__HOLDS__RW
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.TAG_HOLDS
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.HoldType
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.SubAccountRef
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.ReleaseHoldRequest
-import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldBalanceResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.PagedResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.ReleasedHoldResponse
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.TotalHoldBalanceResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.services.HoldsService
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.utils.VALIDATION_MESSAGE_PRISON_NUMBER
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.utils.VALIDATION_REGEX_PRISON_NUMBER
@@ -192,7 +193,7 @@ class HoldsController(val holdsService: HoldsService) {
         content = [
           Content(
             mediaType = "application/json",
-            schema = Schema(implementation = HoldBalanceResponse::class),
+            schema = Schema(implementation = TotalHoldBalanceResponse::class),
           ),
         ],
       ),
@@ -230,7 +231,7 @@ class HoldsController(val holdsService: HoldsService) {
       message = VALIDATION_MESSAGE_PRISON_NUMBER,
     )
     @PathVariable prisonNumber: String,
-  ): ResponseEntity<HoldBalanceResponse> {
+  ): ResponseEntity<TotalHoldBalanceResponse> {
     val holdBalanceResponse = holdsService.getHoldBalanceForAccount(prisonNumber)
 
     return ResponseEntity.status(HttpStatus.OK).body(holdBalanceResponse)
@@ -248,7 +249,7 @@ class HoldsController(val holdsService: HoldsService) {
         content = [
           Content(
             mediaType = "application/json",
-            schema = Schema(implementation = HoldBalanceResponse::class),
+            schema = Schema(implementation = TotalHoldBalanceResponse::class),
           ),
         ],
       ),
@@ -287,7 +288,7 @@ class HoldsController(val holdsService: HoldsService) {
     )
     @PathVariable prisonNumber: String,
     @PathVariable subAccountRef: String,
-  ): ResponseEntity<HoldBalanceResponse> {
+  ): ResponseEntity<TotalHoldBalanceResponse> {
     val matchingSubAccountRef = SubAccountRef.entries.find {
       it.name.equals(subAccountRef, ignoreCase = true)
     } ?: throw ValidationException("Invalid sub account ref")
@@ -348,11 +349,13 @@ class HoldsController(val holdsService: HoldsService) {
     @PathVariable prisonNumber: String,
     @RequestParam @Min(1) pageNumber: Int = 1,
     @RequestParam @Min(1) pageSize: Int = 25,
+    @RequestParam(required = false) holdType: HoldType? = null,
   ): ResponseEntity<PagedResponse<HoldResponse>> {
     val response = holdsService.getActiveHolds(
       prisonNumber = prisonNumber,
       pageNumber = pageNumber,
       pageSize = pageSize,
+      holdType = holdType,
     )
 
     return ResponseEntity.status(HttpStatus.OK).body(response)

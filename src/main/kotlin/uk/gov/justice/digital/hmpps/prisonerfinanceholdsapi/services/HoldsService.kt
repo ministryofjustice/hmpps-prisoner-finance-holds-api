@@ -9,16 +9,17 @@ import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.HoldRepository
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.clients.GeneralLedgerApiClient
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.CustomException
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.entities.HoldEntity
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.HoldType
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.SubAccountRef
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.generalledger.CreatePostingRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.generalledger.CreateTransactionRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldMigrationRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.ReleaseHoldRequest
-import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldBalanceResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.HoldResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.PagedResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.ReleasedHoldResponse
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.responses.TotalHoldBalanceResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.utils.toPageResponse
 import java.time.Instant
 import java.util.UUID
@@ -153,19 +154,31 @@ class HoldsService(
     return saveOrGetExistingHoldEntity(newHold, createHoldRequest.legacyHoldNumber)
   }
 
-  fun getHoldBalanceForAccount(prisonNumber: String): HoldBalanceResponse {
-    val amount = holdRepository.findByPrisonNumberAndIsReleasedFalse(
+  fun getHoldBalanceForAccount(prisonNumber: String): TotalHoldBalanceResponse {
+    val holds = holdRepository.findByPrisonNumberAndIsReleasedFalse(
       prisonNumber = prisonNumber,
-    ).sumOf { it.amount }
-    return HoldBalanceResponse(Instant.now(), amount)
+    )
+
+    return calculateHoldBalances(holds)
   }
 
-  fun getHoldBalanceForSubAccount(prisonNumber: String, subAccountRef: SubAccountRef): HoldBalanceResponse {
-    val amount = holdRepository.findByPrisonNumberAndSubAccountRefAndIsReleasedFalse(
+  fun getHoldBalanceForSubAccount(prisonNumber: String, subAccountRef: SubAccountRef): TotalHoldBalanceResponse {
+    val holds = holdRepository.findByPrisonNumberAndSubAccountRefAndIsReleasedFalse(
       prisonNumber = prisonNumber,
       subAccountRef = subAccountRef,
-    ).sumOf { it.amount }
-    return HoldBalanceResponse(Instant.now(), amount)
+    )
+
+    return calculateHoldBalances(holds)
+  }
+
+  private fun calculateHoldBalances(holds: List<HoldEntity>): TotalHoldBalanceResponse {
+    val (hoa, whf) = holds.partition { it.holdType == HoldType.HOA }
+
+    val hoaBalance = hoa.sumOf { it.amount }
+    val whfBalance = whf.sumOf { it.amount }
+    val totalBalance = hoaBalance + whfBalance
+
+    return TotalHoldBalanceResponse(balanceDateTime = Instant.now(), amount = totalBalance, hoa = hoaBalance, whf = whfBalance)
   }
 
   fun releaseHoldById(holdId: UUID, releaseHoldRequest: ReleaseHoldRequest, idempotencyKey: UUID): ReleasedHoldResponse {
@@ -243,7 +256,7 @@ class HoldsService(
     )
   }
 
-  fun getActiveHolds(prisonNumber: String, pageNumber: Int, pageSize: Int): PagedResponse<HoldResponse> {
+  fun getActiveHolds(prisonNumber: String, pageNumber: Int, pageSize: Int, holdType: HoldType? = null): PagedResponse<HoldResponse> {
     val zeroIndexedPage: Int = pageNumber - 1
 
     val pagedRequest = PageRequest.of(
@@ -255,7 +268,7 @@ class HoldsService(
       ),
     )
 
-    return holdRepository.findByPrisonNumberAndIsReleasedFalse(prisonNumber, pagedRequest)
+    return holdRepository.findByPrisonNumberAndIsReleasedFalse(prisonNumber, pagedRequest, holdType)
       .toPageResponse { content ->
         content.map { HoldResponse.fromEntity(it) }
       }
