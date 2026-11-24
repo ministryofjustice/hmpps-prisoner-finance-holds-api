@@ -48,8 +48,3 @@ generic-service:
       holds-restore-s3-bucket:
         BUCKET_NAME: "bucket_name"
   serviceAccountName: "hmpps-prisoner-finance-holds"
-
-# CloudPlatform AlertManager receiver to route prometheus alerts to slack
-# See https://user-guide.cloud-platform.service.justice.gov.uk/documentation/monitoring-an-app/how-to-create-alarms.html#creating-your-own-custom-alerts
-generic-prometheus-alerts:
-  alertSeverity: prisoner-finance-alerts-prod
