@@ -11,4 +11,5 @@ data class ReleasedHoldResponse(
   val amountReleased: Long,
   val releasedAt: Instant,
   val releasedTransactionId: UUID,
+  val updatedBy: String? = null,
 )

@@ -5,4 +5,5 @@ import java.time.Instant
 data class ReleaseHoldRequest(
   val releaseDateTime: Instant,
   val legacyTransactionId: Long? = null,
+  val updatedBy: String,
 )
