@@ -259,14 +259,14 @@ class HoldsService(
         entrySequence = 1,
         postings = listOf(
           CreatePostingRequest(
-            subAccountId = prisonerSubAccount.id,
-            type = CreatePostingRequest.Type.CR,
+            subAccountId = prisonSubAccount.id,
+            type = CreatePostingRequest.Type.DR,
             amount = holdToRelease.amount,
             entrySequence = 1,
           ),
           CreatePostingRequest(
-            subAccountId = prisonSubAccount.id,
-            type = CreatePostingRequest.Type.DR,
+            subAccountId = prisonerSubAccount.id,
+            type = CreatePostingRequest.Type.CR,
             amount = holdToRelease.amount,
             entrySequence = 2,
           ),

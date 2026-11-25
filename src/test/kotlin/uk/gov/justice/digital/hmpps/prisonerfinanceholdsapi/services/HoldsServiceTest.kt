@@ -1038,14 +1038,14 @@ class HoldsServiceTest {
         entrySequence = 1,
         postings = listOf(
           CreatePostingRequest(
-            subAccountId = prisonerSubAccountResponse.id,
-            type = CreatePostingRequest.Type.CR,
+            subAccountId = prisonSubAccountResponse.id,
+            type = CreatePostingRequest.Type.DR,
             amount = releasedHoldEntity.amount,
             entrySequence = 1,
           ),
           CreatePostingRequest(
-            subAccountId = prisonSubAccountResponse.id,
-            type = CreatePostingRequest.Type.DR,
+            subAccountId = prisonerSubAccountResponse.id,
+            type = CreatePostingRequest.Type.CR,
             amount = releasedHoldEntity.amount,
             entrySequence = 2,
           ),
