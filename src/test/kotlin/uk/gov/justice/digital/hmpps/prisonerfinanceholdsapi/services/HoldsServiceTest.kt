@@ -711,7 +711,8 @@ class HoldsServiceTest {
         subAccountRef = releasedHoldEntity.subAccountRef,
         amountReleased = releasedHoldEntity.amount,
         releasedAt = releaseHoldRequest.releaseDateTime,
-        releasedTransactionId = releasedHoldEntity.releasedTransactionId!!,
+        releasedTransactionId = glTransactionId,
+        updatedBy = updatedBy,
       )
 
       assertThat(actualReleaseHoldResponse).isEqualTo(expectedReleasedHoldResponse)

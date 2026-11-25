@@ -3,6 +3,7 @@ package uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.integration
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -1109,6 +1110,26 @@ class HoldsIntegrationTest : IntegrationTestBase() {
         .bodyValue(mapper.writeValueAsString(mapOf("invalid" to "request")))
         .exchange()
         .expectStatus().isBadRequest
+    }
+
+    @Disabled("We will enable this once we receive a none null updatedBy")
+    @Test
+    fun `should return 400 when JSON does not have updated by`() {
+      webTestClient.post().uri("/holds/${UUID.randomUUID()}/release")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .headers(setIdempotencyKey(idempotencyKey))
+        .header("Content-Type", "application/json")
+        .bodyValue(
+          """
+          { 
+            "releaseDateTime": "${Instant.now()}",
+            "legacyTransactionId": 1
+          }
+          """.trimIndent(),
+        )
+        .exchange()
+        .expectStatus()
+        .isBadRequest
     }
 
     @Test
