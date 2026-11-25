@@ -777,6 +777,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
   @Nested
   inner class PostHoldRelease {
 
+    val updatedBy = "UPDATED_USER"
     val prisonSubAccountUUID = UUID.randomUUID()
     val prisonerSubAccountUUID = UUID.randomUUID()
     val legacyTransactionId = 123456L
@@ -802,6 +803,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
       val releaseRequest = ReleaseHoldRequest(
         releaseDateTime = releaseTime,
         legacyTransactionId = legacyTransactionId,
+        updatedBy = updatedBy,
       )
 
       generalLedgerApi.stubGetSubAccount(
@@ -857,6 +859,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
       assertThat(releasedHoldResponse.id).isEqualTo(createdHold.id)
       assertThat(releasedHoldResponse.subAccountRef).isEqualTo(createdHold.subAccountRef)
       assertThat(releasedHoldResponse.prisonNumber).isEqualTo(createdHold.prisonNumber)
+      assertThat(releasedHoldResponse.updatedBy).isEqualTo(updatedBy)
 
       assertThat(releasedHoldResponse.releasedTransactionId).isEqualTo(releasedTransactionId)
 
@@ -884,6 +887,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
 
       val releaseRequest = ReleaseHoldRequest(
         releaseDateTime = releaseTime,
+        updatedBy = updatedBy,
       )
 
       generalLedgerApi.stubGetSubAccount(
@@ -964,6 +968,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
       val releaseRequestOne = ReleaseHoldRequest(
         releaseDateTime = initialReleaseTime,
         legacyTransactionId = legacyTransactionId,
+        updatedBy = updatedBy,
       )
 
       generalLedgerApi.stubGetSubAccount(
@@ -1018,6 +1023,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
       val releaseRequestTwo = ReleaseHoldRequest(
         releaseDateTime = initialReleaseTime.plusSeconds(1),
         legacyTransactionId = legacyTransactionId,
+        updatedBy = updatedBy,
       )
 
       val releaseResultTwo = webTestClient.post().uri("/holds/${createdHold.id}/release")
@@ -1039,6 +1045,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
       val releaseRequest = ReleaseHoldRequest(
         releaseDateTime = Instant.now(),
         legacyTransactionId = legacyTransactionId,
+        updatedBy = updatedBy,
       )
 
       webTestClient.post().uri("/holds/${UUID.randomUUID()}/release")
@@ -1068,6 +1075,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
       val releaseRequest = ReleaseHoldRequest(
         releaseDateTime = releaseTime,
         legacyTransactionId = legacyTransactionId,
+        updatedBy = updatedBy,
       )
 
       webTestClient.post().uri("/holds/${createdHold.id}/release")
@@ -1082,6 +1090,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
       val releaseRequest = ReleaseHoldRequest(
         releaseDateTime = Instant.now(),
         legacyTransactionId = legacyTransactionId,
+        updatedBy = updatedBy,
       )
 
       webTestClient.post().uri("/holds/this-is-not-a-uuid/release")
@@ -1103,10 +1112,30 @@ class HoldsIntegrationTest : IntegrationTestBase() {
     }
 
     @Test
+    fun `should return 400 when JSON does not have updated by`() {
+      webTestClient.post().uri("/holds/${UUID.randomUUID()}/release")
+        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
+        .headers(setIdempotencyKey(idempotencyKey))
+        .header("Content-Type", "application/json")
+        .bodyValue(
+          """
+          { 
+            "releaseDateTime": "${Instant.now()}",
+            "legacyTransactionId": 1
+          }
+          """.trimIndent(),
+        )
+        .exchange()
+        .expectStatus()
+        .isBadRequest
+    }
+
+    @Test
     fun `should return 403 forbidden when user does not have the correct role`() {
       val releaseRequest = ReleaseHoldRequest(
         releaseDateTime = Instant.now(),
         legacyTransactionId = legacyTransactionId,
+        updatedBy = updatedBy,
       )
 
       webTestClient.post().uri("/holds/${UUID.randomUUID()}/release")
@@ -1122,6 +1151,7 @@ class HoldsIntegrationTest : IntegrationTestBase() {
       val releaseRequest = ReleaseHoldRequest(
         releaseDateTime = Instant.now(),
         legacyTransactionId = legacyTransactionId,
+        updatedBy = updatedBy,
       )
 
       val createdHold = integrationTestHelpers.createHold(

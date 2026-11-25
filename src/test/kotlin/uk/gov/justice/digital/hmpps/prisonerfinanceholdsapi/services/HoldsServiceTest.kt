@@ -780,6 +780,7 @@ class HoldsServiceTest {
   @Nested
   inner class ReleaseHolds {
 
+    val updatedBy = "UPDATED_USER"
     val prisonSubAccountId: UUID = UUID.randomUUID()
     val prisonerSubAccountId: UUID = UUID.randomUUID()
     val glTransactionId: UUID = UUID.randomUUID()
@@ -810,6 +811,7 @@ class HoldsServiceTest {
     val releaseHoldRequest = ReleaseHoldRequest(
       releaseDateTime = releaseDateTime,
       legacyTransactionId = legacyTransactionId,
+      updatedBy = updatedBy,
     )
 
     val releasedHoldEntity = unreleasedHoldEntity.copy(
@@ -1108,6 +1110,7 @@ class HoldsServiceTest {
         amountReleased = releasedHoldEntity.amount,
         releasedAt = releaseHoldRequest.releaseDateTime,
         releasedTransactionId = glTransactionId,
+        updatedBy = updatedBy,
       )
 
       assertThat(actualReleaseHoldResponse).isEqualTo(expectedReleasedHoldResponse)
