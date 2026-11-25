@@ -695,6 +695,7 @@ class HoldsServiceTest {
       isReleased = true,
       releasedTransactionId = glTransactionId,
       releasedAt = releaseHoldRequest.releaseDateTime,
+      updatedBy = updatedBy,
     )
 
     val entityCaptor = argumentCaptor<HoldEntity>()

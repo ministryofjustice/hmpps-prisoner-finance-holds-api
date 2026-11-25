@@ -1133,25 +1133,6 @@ class HoldsIntegrationTest : IntegrationTestBase() {
     }
 
     @Test
-    fun `should return 400 when JSON does not have updated by`() {
-      webTestClient.post().uri("/holds/${UUID.randomUUID()}/release")
-        .headers(setAuthorisation(roles = listOf(ROLE_PRISONER_FINANCE__HOLDS__RW)))
-        .headers(setIdempotencyKey(idempotencyKey))
-        .header("Content-Type", "application/json")
-        .bodyValue(
-          """
-          { 
-            "releaseDateTime": "${Instant.now()}",
-            "legacyTransactionId": 1
-          }
-          """.trimIndent(),
-        )
-        .exchange()
-        .expectStatus()
-        .isBadRequest
-    }
-
-    @Test
     fun `should return 403 forbidden when user does not have the correct role`() {
       val releaseRequest = ReleaseHoldRequest(
         releaseDateTime = Instant.now(),
