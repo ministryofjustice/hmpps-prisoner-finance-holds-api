@@ -8,6 +8,7 @@ import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.entities.Hold
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.generalledger.CreatePostingRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.generalledger.CreateTransactionRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.generalledger.SubAccountResponse
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.ReleaseHoldRequest
 import java.util.UUID
 
@@ -21,7 +22,7 @@ class GeneralLedgerService(val generalLedgerApiClient: GeneralLedgerApiClient) {
     return subAccountResponse
   }
 
-  fun createReleaseHoldTransaction(unreleasedHoldEntity: HoldEntity, releaseHoldRequest: ReleaseHoldRequest, idempotencyKey: UUID): UUID {
+  fun postReleaseHoldTransaction(unreleasedHoldEntity: HoldEntity, releaseHoldRequest: ReleaseHoldRequest, idempotencyKey: UUID): UUID {
     val prisonerSubAccount = resolveSubAccount(unreleasedHoldEntity.prisonNumber, unreleasedHoldEntity.subAccountRef.toString())
     val prisonSubAccount = resolveSubAccount(unreleasedHoldEntity.holdLocation, "${HOLD_ACCOUNT_CODE}:${unreleasedHoldEntity.holdType.getReleaseType()}")
 
@@ -49,6 +50,40 @@ class GeneralLedgerService(val generalLedgerApiClient: GeneralLedgerApiClient) {
     )
 
     val generalLedgerTransactionId = generalLedgerApiClient.postTransaction(releaseTransactionRequest, idempotencyKey)
+
+    return generalLedgerTransactionId
+  }
+
+  fun postCreateHoldTransaction(createHoldRequest: CreateHoldRequest, idempotencyKey: UUID): UUID {
+    val prisonerSubAccount = resolveSubAccount(createHoldRequest.prisonNumber, createHoldRequest.subAccountRef.toString())
+
+    val prisonSubAccount = resolveSubAccount(createHoldRequest.holdLocation, "${HOLD_ACCOUNT_CODE}:${createHoldRequest.holdType}")
+
+    val createTransactionRequest = CreateTransactionRequest(
+      reference = "",
+      description = createHoldRequest.description ?: "",
+      timestamp = createHoldRequest.createdAt,
+      amount = createHoldRequest.amount,
+      entrySequence = 1,
+      postings = listOf(
+        CreatePostingRequest(
+          subAccountId = prisonerSubAccount.id,
+          type = CreatePostingRequest.Type.DR,
+          amount = createHoldRequest.amount,
+          entrySequence = 1,
+        ),
+        CreatePostingRequest(
+          subAccountId = prisonSubAccount.id,
+          type = CreatePostingRequest.Type.CR,
+          amount = createHoldRequest.amount,
+          entrySequence = 2,
+        ),
+
+      ),
+      legacyTransactionId = createHoldRequest.holdLegacyTransactionId,
+    )
+
+    val generalLedgerTransactionId = generalLedgerApiClient.postTransaction(createTransactionRequest, idempotencyKey)
 
     return generalLedgerTransactionId
   }

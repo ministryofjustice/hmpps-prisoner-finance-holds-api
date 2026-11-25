@@ -27,9 +27,6 @@ import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.config.CustomExcepti
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.entities.HoldEntity
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.HoldType
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.SubAccountRef
-import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.generalledger.CreatePostingRequest
-import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.generalledger.CreateTransactionRequest
-import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.generalledger.SubAccountResponse
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldMigrationRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.ReleaseHoldRequest
@@ -83,9 +80,6 @@ class HoldsServiceTest {
   @Nested
   inner class CreateHold {
     val idempotencyKey = UUID.randomUUID()
-    val transactionGLId = UUID.randomUUID()
-    val prisonerCashAccountUUID = UUID.randomUUID()
-    val prisonHoldAccountUUID = UUID.randomUUID()
 
     val createHoldRequest = CreateHoldRequest(
       prisonNumber = prisonNumber,
@@ -111,144 +105,18 @@ class HoldsServiceTest {
       createdAt = createHoldRequest.createdAt,
     )
 
-    val prisonerSubaccountResponse = SubAccountResponse(
-      id = prisonerCashAccountUUID,
-      reference = createHoldRequest.subAccountRef.toString(),
-      parentAccountId = UUID.randomUUID(),
-      createdBy = "",
-      createdAt = Instant.now(),
-    )
-
-    val prisonSubaccountResponse = SubAccountResponse(
-      id = prisonHoldAccountUUID,
-      reference = "2199:${createHoldRequest.holdType}",
-      parentAccountId = UUID.randomUUID(),
-      createdBy = "",
-      createdAt = Instant.now(),
-    )
-
-    private fun mockSubaccountResolution() {
-      whenever {
-        generalLedgerApiClient.findSubAccount(
-          parentReference = createHoldRequest.prisonNumber,
-          subAccountReference = createHoldRequest.subAccountRef.toString(),
-        )
-      }.thenReturn(prisonerSubaccountResponse)
-
-      whenever {
-        generalLedgerApiClient.findSubAccount(
-          parentReference = createHoldRequest.holdLocation,
-          subAccountReference = prisonSubaccountResponse.reference,
-        )
-      }.thenReturn(prisonSubaccountResponse)
-    }
-
-    @Test
-    fun `should call GL service to find prisoner subaccount`() {
-      mockSubaccountResolution()
-
-      whenever { holdRepository.save(any<HoldEntity>()) }.thenReturn(holdEntity)
-
-      holdsService.createHold(createHoldRequest, idempotencyKey)
-
-      verify(generalLedgerApiClient, times(1)).findSubAccount(
-        parentReference = createHoldRequest.prisonNumber,
-        subAccountReference = createHoldRequest.subAccountRef.toString(),
-      )
-    }
-
-    @Test
-    fun `should throw 404 if prisoner subaccount not found`() {
-      whenever {
-        generalLedgerApiClient.findSubAccount(
-          parentReference = createHoldRequest.prisonNumber,
-          subAccountReference = createHoldRequest.subAccountRef.toString(),
-        )
-      }.thenReturn(null)
-
-      val exception = assertThrows<CustomException> {
-        holdsService.createHold(createHoldRequest, idempotencyKey)
-      }
-      assertThat(exception.status).isEqualTo(HttpStatus.NOT_FOUND)
-    }
-
-    @Test
-    fun `should call GL service to find prison subaccount`() {
-      mockSubaccountResolution()
-
-      whenever { holdRepository.save(any<HoldEntity>()) }.thenReturn(holdEntity)
-
-      holdsService.createHold(createHoldRequest, idempotencyKey)
-
-      verify(generalLedgerApiClient, times(1)).findSubAccount(
-        parentReference = createHoldRequest.holdLocation,
-        subAccountReference = "2199:${createHoldRequest.holdType}",
-      )
-    }
-
-    @Test
-    fun `should throw 404 if prison subaccount not found`() {
-      whenever {
-        generalLedgerApiClient.findSubAccount(
-          parentReference = createHoldRequest.prisonNumber,
-          subAccountReference = createHoldRequest.subAccountRef.toString(),
-        )
-      }.thenReturn(prisonerSubaccountResponse)
-
-      whenever {
-        generalLedgerApiClient.findSubAccount(
-          parentReference = createHoldRequest.holdLocation,
-          subAccountReference = "2199:${createHoldRequest.holdType}",
-        )
-      }.thenReturn(null)
-
-      val exception = assertThrows<CustomException> {
-        holdsService.createHold(createHoldRequest, idempotencyKey)
-      }
-      assertThat(exception.status).isEqualTo(HttpStatus.NOT_FOUND)
-    }
-
     @Test
     fun `should call GL service to create the transaction and create hold`() {
       whenever { holdRepository.save(any<HoldEntity>()) }.thenReturn(holdEntity)
 
-      mockSubaccountResolution()
-
-      val transactionReqCaptor = argumentCaptor<CreateTransactionRequest>()
-      whenever {
-        generalLedgerApiClient.postTransaction(
-          transactionReqCaptor.capture(),
-          any(),
-        )
-      }.thenReturn(transactionGLId)
+      whenever { generalLedgerService.postCreateHoldTransaction(createHoldRequest, idempotencyKey) }.thenReturn(UUID.randomUUID())
 
       holdsService.createHold(createHoldRequest, idempotencyKey)
 
-      verify(generalLedgerApiClient, times(1))
-        .postTransaction(
-          any(),
-          eq(idempotencyKey),
-        )
+      verify(generalLedgerService, times(1))
+        .postCreateHoldTransaction(createHoldRequest, idempotencyKey)
+
       verify(holdRepository, times(1)).save(any())
-
-      val transactionReq = transactionReqCaptor.firstValue
-
-      assertThat(transactionReq.amount).isEqualTo(createHoldRequest.amount)
-      assertThat(transactionReq.description).isEqualTo(createHoldRequest.description)
-      assertThat(transactionReq.reference).isEqualTo("")
-      assertThat(transactionReq.entrySequence).isEqualTo(1)
-      assertThat(transactionReq.timestamp).isEqualTo(createHoldRequest.createdAt)
-      assertThat(transactionReq.legacyTransactionId).isEqualTo(createHoldRequest.holdLegacyTransactionId)
-
-      val debitPosting = transactionReq.postings.first { it.type == CreatePostingRequest.Type.DR }
-      assertThat(debitPosting.subAccountId).isEqualTo(prisonerCashAccountUUID)
-      assertThat(debitPosting.entrySequence).isEqualTo(1)
-      assertThat(debitPosting.amount).isEqualTo(createHoldRequest.amount)
-
-      val creditPosting = transactionReq.postings.first { it.type == CreatePostingRequest.Type.CR }
-      assertThat(creditPosting.subAccountId).isEqualTo(prisonHoldAccountUUID)
-      assertThat(creditPosting.entrySequence).isEqualTo(2)
-      assertThat(creditPosting.amount).isEqualTo(createHoldRequest.amount)
     }
 
     @Test
@@ -257,27 +125,20 @@ class HoldsServiceTest {
 
       holdsService.createHold(createHoldRequest, idempotencyKey)
 
-      verify(generalLedgerApiClient, times(0))
-        .postTransaction(any(), any())
-      verify(holdRepository, times(0)).save(any())
-      verify(holdRepository, times(1)).getHoldEntityByLegacyHoldNumber(createHoldRequest.legacyHoldNumber)
+      verify(generalLedgerService, times(0))
+        .postCreateHoldTransaction(any(), any())
+
+      verify(holdRepository, times(0)).save(any<HoldEntity>())
     }
 
     @Test
     fun `should handle unique constrain violation and return the existing hold when the hold already exists`() {
       // Unique constraint violation is expected during race conditions
-      mockSubaccountResolution()
-
       whenever { holdRepository.getHoldEntityByLegacyHoldNumber(createHoldRequest.legacyHoldNumber) }
         .thenReturn(null)
         .thenReturn(holdEntity)
 
-      whenever {
-        generalLedgerApiClient.postTransaction(
-          any(),
-          any(),
-        )
-      }.thenReturn(transactionGLId, idempotencyKey)
+      whenever { generalLedgerService.postCreateHoldTransaction(createHoldRequest, idempotencyKey) }.thenReturn(UUID.randomUUID())
 
       whenever { holdRepository.save(any<HoldEntity>()) }.thenThrow(
         DataIntegrityViolationException("DataIntegrityViolationException for constraint uc_holds_legacy_hold_number"),
@@ -285,14 +146,30 @@ class HoldsServiceTest {
 
       val response = holdsService.createHold(createHoldRequest, idempotencyKey)
 
-      verify(generalLedgerApiClient, times(1))
-        .postTransaction(
-          any(),
-          eq(idempotencyKey),
-        )
+      verify(generalLedgerService, times(1))
+        .postCreateHoldTransaction(createHoldRequest, idempotencyKey)
+
       verify(holdRepository, times(1)).save(any())
 
       assertThat(response.id).isEqualTo(holdEntity.id)
+    }
+
+    @Test
+    fun `should throw exception when create transaction fails and does not save entity`() {
+      whenever { holdRepository.getHoldEntityByLegacyHoldNumber(createHoldRequest.legacyHoldNumber) }
+        .thenReturn(null)
+
+      whenever(generalLedgerService.postCreateHoldTransaction(any(), any()))
+        .thenAnswer { throw CustomException("Subaccount not found", HttpStatus.NOT_FOUND) }
+
+      val exception = assertThrows<CustomException> {
+        holdsService.createHold(createHoldRequest, idempotencyKey)
+      }
+
+      assertThat(exception.message).contains("Subaccount not found")
+      assertThat(exception.status).isEqualTo(HttpStatus.NOT_FOUND)
+
+      verify(holdRepository, never()).save(any<HoldEntity>())
     }
   }
 
@@ -783,8 +660,6 @@ class HoldsServiceTest {
   inner class ReleaseHolds {
 
     val updatedBy = "UPDATED_USER"
-    val prisonSubAccountId: UUID = UUID.randomUUID()
-    val prisonerSubAccountId: UUID = UUID.randomUUID()
     val glTransactionId: UUID = UUID.randomUUID()
     val holdId: UUID = UUID.randomUUID()
     val idempotencyKey: UUID = UUID.randomUUID()
@@ -822,41 +697,7 @@ class HoldsServiceTest {
       releasedAt = releaseHoldRequest.releaseDateTime,
     )
 
-    val prisonerParentAccountId: UUID = UUID.randomUUID()
-    val prisonerSubAccountResponse = SubAccountResponse(
-      id = prisonerSubAccountId,
-      reference = "SPENDS",
-      parentAccountId = prisonerParentAccountId,
-      createdBy = "JOHN_USER",
-      createdAt = Instant.now(),
-    )
-
-    val prisonParentAccountId: UUID = UUID.randomUUID()
-    val prisonSubAccountResponse = SubAccountResponse(
-      id = prisonSubAccountId,
-      reference = "2199:HOR",
-      parentAccountId = prisonParentAccountId,
-      createdBy = "JOHN_USER",
-      createdAt = Instant.now(),
-    )
-
     val entityCaptor = argumentCaptor<HoldEntity>()
-
-    @Test
-    fun `should throw exception when create transaction fails and does not save updated entity`() {
-      whenever { holdRepository.findHoldEntityById(holdId) }.thenReturn(unreleasedHoldEntity)
-      whenever(generalLedgerService.createReleaseHoldTransaction(any(), any(), any()))
-        .thenAnswer { throw CustomException("Subaccount not found", HttpStatus.NOT_FOUND) }
-
-      val exception = assertThrows<CustomException> {
-        holdsService.releaseHoldById(holdId, releaseHoldRequest, idempotencyKey)
-      }
-
-      assertThat(exception.message).contains("Subaccount not found")
-      assertThat(exception.status).isEqualTo(HttpStatus.NOT_FOUND)
-
-      verify(holdRepository, never()).save(any<HoldEntity>())
-    }
 
     @Test
     fun `should return existing hold if already released`() {
@@ -881,7 +722,7 @@ class HoldsServiceTest {
     fun `should save updated entity and return response`() {
       whenever { holdRepository.findHoldEntityById(holdId) }.thenReturn(unreleasedHoldEntity)
 
-      whenever { generalLedgerService.createReleaseHoldTransaction(unreleasedHoldEntity, releaseHoldRequest, idempotencyKey) }.thenReturn(glTransactionId)
+      whenever { generalLedgerService.postReleaseHoldTransaction(unreleasedHoldEntity, releaseHoldRequest, idempotencyKey) }.thenReturn(glTransactionId)
 
       whenever { holdRepository.save(entityCaptor.capture()) }.thenAnswer { it.arguments[0] }
 

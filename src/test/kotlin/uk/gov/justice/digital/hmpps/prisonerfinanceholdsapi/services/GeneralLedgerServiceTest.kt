@@ -26,6 +26,7 @@ import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.enums.SubAcco
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.generalledger.CreatePostingRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.generalledger.CreateTransactionRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.generalledger.SubAccountResponse
+import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.CreateHoldRequest
 import uk.gov.justice.digital.hmpps.prisonerfinanceholdsapi.models.requests.ReleaseHoldRequest
 import java.time.Instant
 import java.util.UUID
@@ -158,7 +159,7 @@ class GeneralLedgerServiceTest {
 
       @Test
       fun `should try to resolve the prisoner sub account`() {
-        generalLedgerService.createReleaseHoldTransaction(unreleasedHoldEntity, releaseHoldRequest, idempotencyKey)
+        generalLedgerService.postReleaseHoldTransaction(unreleasedHoldEntity, releaseHoldRequest, idempotencyKey)
 
         verify(generalLedgerApiClient, times(1)).findSubAccount(
           parentReference = eq(prisonNumber),
@@ -170,7 +171,7 @@ class GeneralLedgerServiceTest {
       @EnumSource(HoldType::class)
       fun `should resolve the correct prison sub account`(holdType: HoldType) {
         val hold = unreleasedHoldEntity.copy(holdType = holdType)
-        generalLedgerService.createReleaseHoldTransaction(hold, releaseHoldRequest, idempotencyKey)
+        generalLedgerService.postReleaseHoldTransaction(hold, releaseHoldRequest, idempotencyKey)
 
         verify(generalLedgerApiClient, times(1)).findSubAccount(
           parentReference = eq(prisonCode),
@@ -182,7 +183,7 @@ class GeneralLedgerServiceTest {
       @EnumSource(HoldType::class)
       fun `should construct the transaction correctly and post it`(holdType: HoldType) {
         val hold = unreleasedHoldEntity.copy(holdType = holdType)
-        val response = generalLedgerService.createReleaseHoldTransaction(hold, releaseHoldRequest, idempotencyKey)
+        val response = generalLedgerService.postReleaseHoldTransaction(hold, releaseHoldRequest, idempotencyKey)
 
         val expectedGLCreateTransactionRequest = CreateTransactionRequest(
           reference = "",
@@ -231,7 +232,7 @@ class GeneralLedgerServiceTest {
         whenever(generalLedgerApiClient.findSubAccount(any(), any())).thenReturn(null)
 
         assertThrows<CustomException> {
-          generalLedgerService.createReleaseHoldTransaction(unreleasedHoldEntity, releaseHoldRequest, idempotencyKey)
+          generalLedgerService.postReleaseHoldTransaction(unreleasedHoldEntity, releaseHoldRequest, idempotencyKey)
         }
       }
     }
@@ -252,7 +253,191 @@ class GeneralLedgerServiceTest {
       }
 
       assertThrows<CustomException> {
-        generalLedgerService.createReleaseHoldTransaction(unreleasedHoldEntity, releaseHoldRequest, idempotencyKey)
+        generalLedgerService.postReleaseHoldTransaction(unreleasedHoldEntity, releaseHoldRequest, idempotencyKey)
+      }
+    }
+  }
+
+  @Nested
+  inner class PostCreateHoldTransaction {
+
+    val idempotencyKey: UUID = UUID.randomUUID()
+    val holdId: UUID = UUID.randomUUID()
+
+    val prisonNumber = "A12345BC"
+    val prisonCode = "LEI"
+    val unreleasedHoldEntity = HoldEntity(
+      id = holdId,
+      prisonNumber = prisonNumber,
+      legacyHoldNumber = 1,
+      subAccountRef = SubAccountRef.SPENDS,
+      createdAt = Instant.now(),
+      createdBy = "",
+      holdFromDate = Instant.now(),
+      holdUntilDate = Instant.now().plusSeconds(1),
+      isReleased = false,
+      description = "",
+      holdType = HoldType.HOA,
+      amount = 1,
+      holdLocation = prisonCode,
+      releasedAt = null,
+      holdTransactionId = UUID.randomUUID(),
+      releasedTransactionId = null,
+    )
+
+    val prisonerSubAccountRef = "SPENDS"
+
+    val prisonerSubAccountResponse = SubAccountResponse(
+      id = UUID.randomUUID(),
+      reference = prisonerSubAccountRef,
+      parentAccountId = UUID.randomUUID(),
+      createdBy = "JOHN_USER",
+      createdAt = Instant
+        .now(),
+    )
+
+    val prisonSubAccountResponse = SubAccountResponse(
+      id = UUID.randomUUID(),
+      reference = "2199:HOA",
+      parentAccountId = UUID.randomUUID(),
+      createdBy = "JOHN_USER",
+      createdAt = Instant
+        .now(),
+    )
+
+    val createHoldRequest = CreateHoldRequest(
+      prisonNumber = prisonNumber,
+      legacyHoldNumber = 1,
+      subAccountRef = SubAccountRef.SPENDS,
+      createdAt = Instant.now(),
+      createdBy = "",
+      holdFromDate = Instant.now(),
+      holdUntilDate = Instant.now().plusSeconds(1),
+      isReleased = false,
+      description = "",
+      holdType = HoldType.HOA,
+      amount = 1,
+      holdLocation = prisonCode,
+      holdLegacyTransactionId = 1,
+    )
+
+    val glTransactionId = UUID.randomUUID()
+
+    @Nested
+    inner class SuccessfulCases {
+      @BeforeEach
+      fun setup() {
+        whenever(
+          generalLedgerApiClient.findSubAccount(
+            any(),
+            any(),
+          ),
+        )
+          .thenReturn(prisonerSubAccountResponse)
+          .thenReturn(prisonSubAccountResponse)
+
+        whenever {
+          generalLedgerApiClient.postTransaction(
+            request = any(),
+            idempotencyKey = any(),
+          )
+        }.thenReturn(glTransactionId)
+      }
+
+      @Test
+      fun `should try to resolve the prisoner sub account`() {
+        generalLedgerService.postCreateHoldTransaction(createHoldRequest, idempotencyKey)
+
+        verify(generalLedgerApiClient, times(1)).findSubAccount(
+          parentReference = eq(prisonNumber),
+          subAccountReference = eq(prisonerSubAccountRef),
+        )
+      }
+
+      @ParameterizedTest
+      @EnumSource(HoldType::class)
+      fun `should resolve the correct prison sub account`(holdType: HoldType) {
+        generalLedgerService.postCreateHoldTransaction(createHoldRequest.copy(holdType = holdType), idempotencyKey)
+
+        verify(generalLedgerApiClient, times(1)).findSubAccount(
+          parentReference = eq(prisonCode),
+          subAccountReference = eq("2199:$holdType"),
+        )
+      }
+
+      @ParameterizedTest
+      @EnumSource(HoldType::class)
+      fun `should construct the transaction correctly and post it`(holdType: HoldType) {
+        val response = generalLedgerService.postCreateHoldTransaction(createHoldRequest.copy(holdType = holdType), idempotencyKey)
+
+        val expectedGLCreateTransactionRequest = CreateTransactionRequest(
+          reference = "",
+          description = createHoldRequest.description!!,
+          timestamp = createHoldRequest.createdAt,
+          amount = createHoldRequest.amount,
+          entrySequence = 1,
+          postings = listOf(
+            CreatePostingRequest(
+              subAccountId = prisonerSubAccountResponse.id,
+              type = CreatePostingRequest.Type.DR,
+              amount = createHoldRequest.amount,
+              entrySequence = 1,
+            ),
+            CreatePostingRequest(
+              subAccountId = prisonSubAccountResponse.id,
+              type = CreatePostingRequest.Type.CR,
+              amount = createHoldRequest.amount,
+              entrySequence = 2,
+            ),
+          ),
+          legacyTransactionId = createHoldRequest.holdLegacyTransactionId,
+        )
+
+        val postTransactionCaptor = argumentCaptor<CreateTransactionRequest>()
+        val idempotencyCaptor = argumentCaptor<UUID>()
+
+        verify(generalLedgerApiClient, times(1)).postTransaction(postTransactionCaptor.capture(), idempotencyCaptor.capture())
+
+        val postingTransaction = postTransactionCaptor.firstValue
+        val idempotency = idempotencyCaptor.firstValue
+
+        assertThat(postingTransaction).isEqualTo(expectedGLCreateTransactionRequest)
+        assertThat(idempotency).isEqualTo(idempotencyKey)
+
+        assertThat(response).isEqualTo(glTransactionId)
+      }
+    }
+
+    @Nested
+    inner class ErrorCases {
+
+      @Test
+      fun `should throw exception if findSubAccount fails`() {
+        whenever(generalLedgerApiClient.findSubAccount(any(), any())).thenReturn(null)
+
+        assertThrows<CustomException> {
+          generalLedgerService.postCreateHoldTransaction(createHoldRequest, idempotencyKey)
+        }
+      }
+
+      @Test
+      fun `should throw exception if postTransaction fails`() {
+        whenever(
+          generalLedgerApiClient.findSubAccount(
+            any(),
+            any(),
+          ),
+        )
+          .thenReturn(prisonerSubAccountResponse)
+          .thenReturn(prisonSubAccountResponse)
+
+        whenever(generalLedgerApiClient.postTransaction(any(), any())).thenAnswer {
+          throw CustomException("Internal Server Error", HttpStatus.INTERNAL_SERVER_ERROR)
+        }
+
+        assertThrows<CustomException> {
+          generalLedgerService.postCreateHoldTransaction(createHoldRequest, idempotencyKey)
+        }
       }
     }
   }
